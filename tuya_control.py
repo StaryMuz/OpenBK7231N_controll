@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 from datetime import datetime
 import os
+import time
 from tuyapy2 import TuyaApi
 
 # ====== KONFIGURAČNÍ PROMĚNNÉ ======
@@ -44,22 +45,6 @@ def je_cena_aktualni_pod_limitem(df):
     print(f"🔍 Cena pro {aktualni_hodina - 1}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
     return cena < LIMIT_EUR
 
-def ovladej_rele(pod_limitem):
-    print("🔌 Připojuji se k Tuya API…")
-    api = TuyaApi()
-    api.init(API_KEY, API_SECRET)
-    api.login(EMAIL, PASSWORD)
-    device = next(d for d in api.get_all_devices() if DEVICE_NAME.lower() in d.name().lower())
-
-    if pod_limitem:
-        print("✅ Cena pod limitem – zapínám relé")
-        device.turn_on()
-        odesli_telegram_zpravu("✅ <b>Relé ZAPNUTO</b> – cena pod limitem.")
-    else:
-        print("❌ Cena nad limitem – vypínám relé")
-        device.turn_off()
-        odesli_telegram_zpravu("❌ <b>Relé VYPNUTO</b> – cena nad limitem.")
-
 def odesli_telegram_zpravu(zprava):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Telegram není nastaven – přeskočeno")
@@ -76,6 +61,39 @@ def odesli_telegram_zpravu(zprava):
             print(f"⚠️ Telegram API chyba: {resp.text}")
     except Exception as e:
         print(f"⚠️ Telegram výjimka: {e}")
+
+def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
+    print("🔌 Připojuji se k Tuya API…")
+    api = TuyaApi()
+    api.init(API_KEY, API_SECRET)
+    api.login(EMAIL, PASSWORD)
+    device = next(d for d in api.get_all_devices() if DEVICE_NAME.lower() in d.name().lower())
+
+    pozadovany_stav = pod_limitem  # True = ON, False = OFF
+    akce_text = "ZAPNUTO" if pozadovany_stav else "VYPNUTO"
+
+    for pokus in range(1, pokusy + 1):
+        print(f"🧪 Pokus {pokus}: nastavování stavu {akce_text}…")
+        if pozadovany_stav:
+            device.turn_on()
+        else:
+            device.turn_off()
+
+        time.sleep(cekani)  # počkáme 1 minutu
+
+        aktualni_stav = device.status()["is_on"]
+        if aktualni_stav == pozadovany_stav:
+            print(f"✅ Relé úspěšně přepnuto ({akce_text}) na pokus {pokus}")
+            cas = datetime.now().strftime("%H:%M")
+            odesli_telegram_zpravu(f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno (pokus {pokus})")
+            return
+        else:
+            print(f"⚠️ Nepodařilo se potvrdit stav. Zkusím znovu za {cekani} sekund…")
+
+    # Pokud se po všech pokusech nepodaří přepnout:
+    print(f"❌ Nepodařilo se přepnout relé na požadovaný stav ({akce_text}) po {pokusy} pokusech.")
+    cas = datetime.now().strftime("%H:%M")
+    odesli_telegram_zpravu(f"❌ <b>Relé NEREAGUJE</b> ({cas}) – nepodařilo se přepnout na {akce_text} po {pokusy} pokusech.")
 
 # ====== HLAVNÍ BĚH ======
 if __name__ == "__main__":
