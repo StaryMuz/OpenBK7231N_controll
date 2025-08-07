@@ -9,7 +9,7 @@ API_SECRET = os.getenv("TUYA_ACCESS_SECRET")
 EMAIL = os.getenv("TUYA_EMAIL")
 PASSWORD = os.getenv("TUYA_PASSWORD")
 DEVICE_NAME = os.getenv("DEVICE_NAME")
-SPOT_LIMIT = 0.05  # upravte dle potřeby
+SPOT_LIMIT = 13.00  # upravte dle potřeby
 
 def ziskej_spot_cenu():
     # ZDE vložte váš zdroj SPOT cen
