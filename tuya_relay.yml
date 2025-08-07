@@ -1,0 +1,29 @@
+name: Ovládání WiFi relé podle SPOT ceny
+
+on:
+  schedule:
+    - cron:  '0 * * * *'  # každou hodinu
+  workflow_dispatch:
+
+jobs:
+  spusteni:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nastavit Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Instalace požadavků
+        run: pip install tuyapy2 requests
+
+      - name: Spustit skript
+        run: python tuya_control.py
+        env:
+          TUYA_ACCESS_ID: ${{ secrets.TUYA_ACCESS_ID }}
+          TUYA_ACCESS_SECRET: ${{ secrets.TUYA_ACCESS_SECRET }}
+          TUYA_EMAIL: ${{ secrets.TUYA_EMAIL }}
+          TUYA_PASSWORD: ${{ secrets.TUYA_PASSWORD }}
+          DEVICE_NAME: ${{ secrets.DEVICE_NAME }}
