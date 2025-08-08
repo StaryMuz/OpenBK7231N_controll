@@ -1,0 +1,16 @@
+name: Daily Job
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # každý den v 6:00 ráno (UTC)
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Run my script
+        run: |
+          echo "Cron job běží!"
