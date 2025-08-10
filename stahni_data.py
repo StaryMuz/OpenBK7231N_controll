@@ -50,4 +50,59 @@ def uloz_csv(df, soubor="ceny_ote.csv"):
 
 def vytvor_graf(df):
     """Vytvoří graf cen a vrátí ho jako bytes."""
-    fig, ax = plt.subplots(figsiz
+    fig, ax = plt.subplots(figsize=(8,4))
+    ax.plot(df["Hodina"], df["Cena (EUR/MWh)"], marker="o")
+    ax.axhline(LIMIT_EUR, color="red", linestyle="--", label=f"Limit {LIMIT_EUR} EUR/MWh")
+    ax.set_xlabel("Hodina")
+    ax.set_ylabel("Cena (EUR/MWh)")
+    ax.set_title(f"Ceny elektřiny {datetime.now().strftime('%d.%m.%Y')}")
+    ax.grid(True)
+    ax.legend()
+
+    buf = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    plt.close(fig)
+    return buf
+
+def zjisti_intervaly_pod_limitem(df):
+    """Vrátí seznam intervalů hodin, kdy je cena < LIMIT_EUR."""
+    pod = df[df["Cena (EUR/MWh)"] < LIMIT_EUR]["Hodina"].tolist()
+    intervaly = []
+    if pod:
+        start = pod[0]
+        prev = pod[0]
+        for h in pod[1:]:
+            if h == prev + 1:
+                prev = h
+            else:
+                intervaly.append(f"{start:02d}:00–{prev+1:02d}:00")
+                start = h
+                prev = h
+        intervaly.append(f"{start:02d}:00–{prev+1:02d}:00")
+    return intervaly
+
+def odesli_telegram_graf(buf, intervaly):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️ Telegram není nastaven – přeskočeno")
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    popis = "Intervaly pod limitem:\n" + "\n".join(intervaly) if intervaly else "Žádné intervaly pod limitem."
+    files = {"photo": ("graf.png", buf, "image/png")}
+    data = {"chat_id": TELEGRAM_CHAT_ID, "caption": popis}
+    try:
+        resp = requests.post(url, files=files, data=data)
+        if resp.status_code != 200:
+            print(f"⚠️ Telegram API chyba: {resp.text}")
+    except Exception as e:
+        print(f"⚠️ Telegram výjimka: {e}")
+
+# ====== HLAVNÍ BĚH ======
+if __name__ == "__main__":
+    df = ziskej_data_z_ote()
+    uloz_csv(df)
+    graf_buf = vytvor_graf(df)
+    intervaly = zjisti_intervaly_pod_limitem(df)
+    odesli_telegram_graf(graf_buf, intervaly)
+    print("🏁 Hotovo.")
