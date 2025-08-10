@@ -1,41 +1,32 @@
-name: Ovládání WiFi relé (9-18)
+name: Ovladej WiFi relé podle cen OTE
 
 on:
   schedule:
-    - cron: '0 9-18 * * *'  # každou hodinu od 09:00 do 18:00 UTC -> upravte pro vaše timezone
-  workflow_dispatch:
+    - cron: "0 8,9,10,11,12,13,14,15,16,17 * 11,12,1,2,3 *"  # zimní čas CET = 9–18 ČR
+    - cron: "0 7,8,9,10,11,12,13,14,15,16 * 4,5,6,7,8,9,10 *"  # letní čas CEST = 9–18 ČR
 
 jobs:
-  ovladani:
+  run:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Download OTE prices artifact
-        uses: actions/download-artifact@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          name: ote-ceny
-          path: .
+          python-version: "3.x"
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install requirements
+      - name: Install dependencies
         run: pip install pandas requests tuyapy2
 
-      - name: Run ovladani_rele.py
+      - name: Run script
         env:
-          LIMIT_EUR: ${{ secrets.LIMIT_EUR }}             # volitelné
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TUYA_ACCESS_ID: ${{ secrets.TUYA_ACCESS_ID }}
           TUYA_ACCESS_SECRET: ${{ secrets.TUYA_ACCESS_SECRET }}
           TUYA_EMAIL: ${{ secrets.TUYA_EMAIL }}
           TUYA_PASSWORD: ${{ secrets.TUYA_PASSWORD }}
           DEVICE_NAME: ${{ secrets.DEVICE_NAME }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          POKUSY: '3'
-          CEKANI: '60'
         run: python ovladani_rele.py
