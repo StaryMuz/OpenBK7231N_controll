@@ -71,14 +71,14 @@ def zjisti_intervaly_pod_limitem(df):
     pod = df[df["Cena (EUR/MWh)"] < LIMIT_EUR]["Hodina"].tolist()
     intervaly = []
     if pod:
-        start = pod[0]
+        start = pod[0]-1
         prev = pod[0]
         for h in pod[1:]:
             if h == prev + 1:
                 prev = h
             else:
                 intervaly.append(f"{start:02d}:00–{prev+1:02d}:00")
-                start = h-1
+                start = h
                 prev = h
         intervaly.append(f"{start:02d}:00–{prev+1:02d}:00")
     return intervaly
