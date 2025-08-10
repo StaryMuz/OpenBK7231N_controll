@@ -1,0 +1,30 @@
+name: Stáhni OTE ceny (ranní)
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # každý den v 06:00 UTC -> dejte pozor na timezone (GitHub Actions používá UTC)
+  workflow_dispatch:
+
+jobs:
+  stahni:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install requirements
+        run: pip install pandas openpyxl requests
+
+      - name: Stáhni OTE data
+        run: python stahni_data.py
+
+      - name: Upload ceny_ote.csv as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ote-ceny
+          path: ceny_ote.csv
