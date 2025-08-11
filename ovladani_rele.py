@@ -95,7 +95,7 @@ if __name__ == "__main__":
     try:
         # ⏱ Omezení času provozu
         hodina = datetime.now().hour + 2
-        if hodina < 9 or hodina > 19:
+        if hodina < 9 or hodina > 24:
             print(f"⏸ Mimo pracovní interval 9–19 h, skript nic neprovádí (aktuálně {hodina} h).")
         else:
             df = nacti_ceny()
