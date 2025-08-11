@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 import os
 import time
-from tuyapy2 import TuyaApi
+from tuyapy import TuyaApi
 import requests
 
 # ====== KONFIGURAČNÍ PROMĚNNÉ ======
