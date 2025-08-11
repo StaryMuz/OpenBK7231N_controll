@@ -28,14 +28,17 @@ def nacti_ceny():
     df = pd.read_csv(CENY_SOUBOR)
     return df
 
+from zoneinfo import ZoneInfo
+
 def je_cena_aktualni_pod_limitem(df):
-    """Z lokálních dat zjistí, zda je cena pro aktuální hodinu pod limitem."""
-    aktualni_hodina = datetime.now().hour + 2 + 1  # Cena platí DO této hodiny
+    """Z lokálních dat zjistí, zda je cena pro aktuální hodinu (ČR) pod limitem."""
+    prague_time = datetime.now(ZoneInfo("Europe/Prague"))
+    aktualni_hodina = prague_time.hour + 1  # Cena platí DO této hodiny
     cena_radek = df[df["Hodina"] == aktualni_hodina]
     if cena_radek.empty:
         raise Exception(f"❌ Nenalezena cena pro hodinu {aktualni_hodina}!")
     cena = cena_radek.iloc[0]["Cena (EUR/MWh)"]
-    print(f"🔍 Cena pro {aktualni_hodina-1}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
+    print(f"🔍 Cena pro {aktualni_hodina - 1}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
     return cena < LIMIT_EUR
 
 def odesli_telegram_zpravu(zprava):
@@ -91,12 +94,15 @@ def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
     odesli_telegram_zpravu(f"❌ <b>Relé NEREAGUJE</b> ({cas}) – nepodařilo se přepnout na {akce_text} po {pokusy} pokusech.")
 
 # ====== HLAVNÍ BĚH ======
+from zoneinfo import ZoneInfo
+
+# ...
 if __name__ == "__main__":
     try:
-        # ⏱ Omezení času provozu
-        hodina = datetime.now().hour + 2
-        if hodina < 9 or hodina > 24:
-            print(f"⏸ Mimo pracovní interval 9–19 h, skript nic neprovádí (aktuálně {hodina} h).")
+        # ⏱ Omezení času provozu (ČR)
+        hodina = datetime.now(ZoneInfo("Europe/Prague")).hour
+        if hodina < 9 or hodina > 19:
+            print(f"⏸ Mimo pracovní interval 9–19 h, skript nic neprovádí (aktuálně {hodina} h ČR).")
         else:
             df = nacti_ceny()
             pod_limitem = je_cena_aktualni_pod_limitem(df)
