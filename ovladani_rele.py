@@ -53,15 +53,15 @@ def odesli_telegram_zpravu(zprava):
         print(f"⚠️ Telegram výjimka: {e}")
 
 def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
-"""Opakované pokusy o přepnutí relé s potvrzením stavu."""
-print("🔌 Připojuji se k Tuya API…")
-api = TuyaApi()
-api.init(API_KEY, API_SECRET, "eu")  # region "eu" pro Evropu
-api.login(EMAIL, PASSWORD, "eu")
-device = next(d for d in api.get_all_devices() if DEVICE_NAME.lower() in d.name().lower())
-
-pozadovany_stav = pod_limitem  # True = ON, False = OFF
-akce_text = "ZAPNUTO" if pozadovany_stav else "VYPNUTO"
+    """Opakované pokusy o přepnutí relé s potvrzením stavu."""
+    print("🔌 Připojuji se k Tuya API…")
+    api = TuyaApi()
+    api.init(API_KEY, API_SECRET, "eu")  # region "eu" pro Evropu
+    api.login(EMAIL, PASSWORD, "eu")
+    device = next(d for d in api.get_all_devices() if DEVICE_NAME.lower() in d.name().lower())
+    
+    pozadovany_stav = pod_limitem  # True = ON, False = OFF
+    akce_text = "ZAPNUTO" if pozadovany_stav else "VYPNUTO"
 
     for pokus in range(1, pokusy + 1):
         print(f"🧪 Pokus {pokus}: nastavování stavu {akce_text}…")
