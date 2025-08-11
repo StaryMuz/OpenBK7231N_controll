@@ -77,10 +77,10 @@ def zjisti_intervaly_pod_limitem(df):
             if h == prev + 1:
                 prev = h
             else:
-                intervaly.append(f"{start:02d}:00–{prev+1:02d}:00")
+                intervaly.append(f"{start:02d}:00–{prev:02d}:00")
                 start = h
                 prev = h
-        intervaly.append(f"{start:02d}:00–{prev+1:02d}:00")
+        intervaly.append(f"{start:02d}:00–{prev:02d}:00")
     return intervaly
 
 def odesli_telegram_graf(buf, intervaly):
