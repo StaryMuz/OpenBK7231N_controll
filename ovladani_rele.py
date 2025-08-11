@@ -36,7 +36,7 @@ def je_cena_aktualni_pod_limitem(df):
     if cena_radek.empty:
         raise Exception(f"❌ Nenalezena cena pro hodinu {aktualni_hodina}!")
     cena = cena_radek.iloc[0]["Cena (EUR/MWh)"]
-    print(f"🔍 Cena pro {aktualni_hodina}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
+    print(f"🔍 Cena pro {aktualni_hodina-1}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
     return cena < LIMIT_EUR
 
 def odesli_telegram_zpravu(zprava):
