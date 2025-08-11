@@ -95,8 +95,8 @@ def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
 
     # Po neúspěchu všech pokusů
     print(f"❌ Nepodařilo se přepnout relé na požadovaný stav ({akce_text}) po {pokusy} pokusech.")
-    cas = datetime.now().strftime("%H:%M")
-    odesli_telegram_zpravu(f"❌ <b>Relé NEREAGUJE</b> ({cas}) – nepodařilo se přepnout na {akce_text} po {pokusy} pokusech.")
+    cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
+    odesli_telegram_zpravu(f"❌ <b>Relé NEREAGUJE</b> ({cas} ČR) – nepodařilo se přepnout na {akce_text} po {pokusy} pokusech.")
 
 # ====== HLAVNÍ BĚH ======
 from zoneinfo import ZoneInfo
