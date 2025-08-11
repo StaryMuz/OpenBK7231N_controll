@@ -6,7 +6,6 @@ on:
     - cron: '0 6 * 11,12,1,2,3 *'
     # letní čas (duben–říjen), 6:00 UTC = 8:00 ČR
     - cron: '0 5 * 4-10 *'
-  workflow_dispatch:
 
 jobs:
   run:
