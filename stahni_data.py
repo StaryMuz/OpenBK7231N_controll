@@ -27,7 +27,7 @@ def ziskej_data_z_ote(max_pokusu=5, cekani=300):
     for pokus in range(1, max_pokusu + 1):
         try:
             print(f"⬇️ Pokus {pokus}: stahuji data z {url}")
-            df = pd.read_excel(url, skiprows=23, usecols="A,B", engine="openpyxl")
+            df = pd.read_excel(url, skiprows=22, usecols="A,B", engine="openpyxl")
             df.columns = ["Hodina", "Cena (EUR/MWh)"]
             df.dropna(inplace=True)
             df["Hodina"] = pd.to_numeric(df["Hodina"], errors="coerce").fillna(0).astype(int)
