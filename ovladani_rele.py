@@ -57,7 +57,7 @@ def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
     print("🔌 Připojuji se k Tuya API…")
     api = TuyaApi()
     api.init(API_KEY, API_SECRET, "eu")  # region "eu" pro Evropu
-    api.login(EMAIL, PASSWORD, "eu")
+    api.login(EMAIL, PASSWORD, "420")
     device = next(d for d in api.get_all_devices() if DEVICE_NAME.lower() in d.name().lower())
     
     pozadovany_stav = pod_limitem  # True = ON, False = OFF
