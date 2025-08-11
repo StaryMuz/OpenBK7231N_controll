@@ -5,6 +5,8 @@ on:
     - cron: '0 7-17 * 11,12,1,2,3 *'  # zimní čas CET = 9–19 ČR
     - cron: '0 6-16 * 4,5,6,7,8,9,10 *'  # letní čas CEST = 9–19 ČR
 
+workflow_dispatch:
+
 jobs:
   ovladani:
     runs-on: ubuntu-latest
