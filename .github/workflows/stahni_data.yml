@@ -44,11 +44,3 @@ jobs:
           else
             echo "Žádné změny – commit se neprovádí."
           fi
-
-      - name: Commit ceny_ote.csv
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add ceny_ote.csv
-          git commit -m "Aktualizace cen OTE $(date +'%Y-%m-%d')"
-          git push
