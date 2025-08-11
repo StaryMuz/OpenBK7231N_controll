@@ -1,4 +1,4 @@
-name: Ovládání WiFi relé (9-18)
+name: Ovládání WiFi relé (9-19)
 
 on:
   workflow_dispatch:
