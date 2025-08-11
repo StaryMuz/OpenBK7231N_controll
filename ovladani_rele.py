@@ -3,8 +3,8 @@ import pandas as pd
 from datetime import datetime
 import os
 import time
-from tuyapy import TuyaApi
 import requests
+from tuya_connector import TuyaOpenAPI
 
 # ====== KONFIGURAČNÍ PROMĚNNÉ ======
 LIMIT_EUR = 13.0  # Limitní cena v EUR/MWh
@@ -14,11 +14,10 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 API_KEY = os.getenv("TUYA_ACCESS_ID")
 API_SECRET = os.getenv("TUYA_ACCESS_SECRET")
-EMAIL = os.getenv("TUYA_EMAIL")
-PASSWORD = os.getenv("TUYA_PASSWORD")
-DEVICE_NAME = os.getenv("DEVICE_NAME")  # Název zařízení v Smart Life
+DEVICE_ID = os.getenv("TUYA_DEVICE_ID")  # ID zařízení z Tuya IoT Platform
 
 CENY_SOUBOR = "ceny_ote.csv"  # Ranní CSV se staženými cenami
+TUYA_ENDPOINT = "https://openapi.tuyaeu.com"  # EU datacentrum
 
 # ====== FUNKCE ======
 
@@ -31,7 +30,7 @@ def nacti_ceny():
 
 def je_cena_aktualni_pod_limitem(df):
     """Z lokálních dat zjistí, zda je cena pro aktuální hodinu pod limitem."""
-    aktualni_hodina = datetime.now().hour +2 + 1  # Cena platí DO této hodiny
+    aktualni_hodina = datetime.now().hour + 2 + 1  # Cena platí DO této hodiny
     cena_radek = df[df["Hodina"] == aktualni_hodina]
     if cena_radek.empty:
         raise Exception(f"❌ Nenalezena cena pro hodinu {aktualni_hodina}!")
@@ -53,26 +52,28 @@ def odesli_telegram_zpravu(zprava):
         print(f"⚠️ Telegram výjimka: {e}")
 
 def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
-    """Opakované pokusy o přepnutí relé s potvrzením stavu."""
+    """Opakované pokusy o přepnutí relé s potvrzením stavu (přes Tuya Connector)."""
     print("🔌 Připojuji se k Tuya API…")
-    api = TuyaApi()
-    api.init(API_KEY, API_SECRET, "eu")  # region "eu" pro Evropu
-    api.login(EMAIL, PASSWORD, "420")
-    device = next(d for d in api.get_all_devices() if DEVICE_NAME.lower() in d.name().lower())
-    
+    openapi = TuyaOpenAPI(TUYA_ENDPOINT, API_KEY, API_SECRET)
+    openapi.connect()
+
     pozadovany_stav = pod_limitem  # True = ON, False = OFF
     akce_text = "ZAPNUTO" if pozadovany_stav else "VYPNUTO"
+    command = [{"code": "switch_1", "value": pozadovany_stav}]
 
     for pokus in range(1, pokusy + 1):
         print(f"🧪 Pokus {pokus}: nastavování stavu {akce_text}…")
-        if pozadovany_stav:
-            device.turn_on()
-        else:
-            device.turn_off()
+        openapi.post(f"/v1.0/devices/{DEVICE_ID}/commands", {"commands": command})
 
         time.sleep(cekani)  # čekáme mezi pokusy
 
-        aktualni_stav = device.status()["is_on"]
+        status_data = openapi.get(f"/v1.0/devices/{DEVICE_ID}/status")
+        aktualni_stav = None
+        for item in status_data.get("result", []):
+            if item["code"] == "switch_1":
+                aktualni_stav = item["value"]
+                break
+
         if aktualni_stav == pozadovany_stav:
             print(f"✅ Relé úspěšně přepnuto ({akce_text}) na pokus {pokus}")
             cas = datetime.now().strftime("%H:%M")
@@ -90,7 +91,7 @@ def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
 if __name__ == "__main__":
     try:
         # ⏱ Omezení času provozu
-        hodina = datetime.now().hour +2
+        hodina = datetime.now().hour + 2
         if hodina < 9 or hodina > 19:
             print(f"⏸ Mimo pracovní interval 9–19 h, skript nic neprovádí (aktuálně {hodina} h).")
         else:
