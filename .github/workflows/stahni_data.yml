@@ -33,6 +33,18 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           LIMIT_EUR: ${{ secrets.LIMIT_EUR }}
 
+      - name: Commit and push if changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add ceny_ote.csv
+            git commit -m "Aktualizace CSV s cenami"
+            git push
+          else
+            echo "Žádné změny – commit se neprovádí."
+          fi
+
       - name: Commit ceny_ote.csv
         run: |
           git config --global user.name "github-actions"
