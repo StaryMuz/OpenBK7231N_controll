@@ -59,7 +59,10 @@ def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
 
     pozadovany_stav = pod_limitem  # True = ON, False = OFF
     akce_text = "ZAPNUTO" if pozadovany_stav else "VYPNUTO"
-    command = [{"code": "switch_1", "value": pozadovany_stav}]
+    import json
+    command = [{"code": "switch_1", "value": bool(pozadovany_stav)}]
+    openapi.post(f"/v1.0/devices/{DEVICE_ID}/commands", {"commands": command})
+
 
     for pokus in range(1, pokusy + 1):
         print(f"🧪 Pokus {pokus}: nastavování stavu {akce_text}…")
