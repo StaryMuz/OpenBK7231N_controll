@@ -1,6 +1,7 @@
 name: Stahni OTE data a pošli graf
 
 on:
+  workflow_dispatch:
   schedule:
     # zimní čas (listopad–březen), 7:00 UTC = 8:00 ČR
     - cron: '0 6 * 11,12,1,2,3 *'
