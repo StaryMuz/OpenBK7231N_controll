@@ -80,13 +80,18 @@ def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
                 aktualni_stav = item["value"]
                 break
 
-        if aktualni_stav == pozadovany_stav:
-            print(f"✅ Relé úspěšně přepnuto ({akce_text}) na pokus {pokus}")
-            cas = datetime.now().strftime("%H:%M")
-            odesli_telegram_zpravu(f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno (pokus {pokus})")
-            return
-        else:
-            print(f"⚠️ Nepodařilo se potvrdit stav. Zkusím znovu za {cekani} sekund…")
+            from zoneinfo import ZoneInfo
+
+            # ...
+
+            if aktualni_stav == pozadovany_stav:
+                print(f"✅ Relé úspěšně přepnuto ({akce_text}) na pokus {pokus}")
+                cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
+                odesli_telegram_zpravu(f"✅ <b>Relé {akce_text}</b> ({cas} ČR) – potvrzeno (pokus {pokus})")
+                return
+            else:
+                print(f"⚠️ Nepodařilo se potvrdit stav. Zkusím znovu za {cekani} sekund…")
+
 
     # Po neúspěchu všech pokusů
     print(f"❌ Nepodařilo se přepnout relé na požadovaný stav ({akce_text}) po {pokusy} pokusech.")
