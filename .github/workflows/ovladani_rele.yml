@@ -7,36 +7,31 @@ on:
     - cron: '0 6-16 * 4,5,6,7,8,9,10 *'  # letní čas CEST = 9–19 ČR
 
 jobs:
-  ovladani:
+  run:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download OTE prices artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ceny-ote
-          path: .
-
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.x'
 
-      - name: Install requirements
-        run: pip install pandas requests tuyapy2
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas openpyxl tuyapy2
 
-      - name: Run ovladani_rele.py
+      - name: Run relay control script
+        run: python ovladani_rele.py
         env:
-          LIMIT_EUR: ${{ secrets.LIMIT_EUR }}             # volitelné
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TUYA_ACCESS_ID: ${{ secrets.TUYA_ACCESS_ID }}
           TUYA_ACCESS_SECRET: ${{ secrets.TUYA_ACCESS_SECRET }}
           TUYA_EMAIL: ${{ secrets.TUYA_EMAIL }}
           TUYA_PASSWORD: ${{ secrets.TUYA_PASSWORD }}
           DEVICE_NAME: ${{ secrets.DEVICE_NAME }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          POKUSY: '3'
-          CEKANI: '60'
-        run: python ovladani_rele.py
+          LIMIT_EUR: ${{ secrets.LIMIT_EUR }}
