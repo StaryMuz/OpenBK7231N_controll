@@ -1,24 +1,23 @@
 # -*- coding: utf-8 -*-
-import pandas as pd
-from datetime import datetime
 import os
 import time
-import requests
-from tuya_connector import TuyaOpenAPI
+import pandas as pd
+from datetime import datetime
 from zoneinfo import ZoneInfo
+import requests
+import paho.mqtt.client as mqtt
 
 # ====== KONFIGURAČNÍ PROMĚNNÉ ======
 LIMIT_EUR = 13.0  # Limitní cena v EUR/MWh
+CENY_SOUBOR = "ceny_ote.csv"  # Ranní CSV se staženými cenami
 
 # Přístupové údaje z GitHub Secrets / .env
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-API_KEY = os.getenv("TUYA_ACCESS_ID")
-API_SECRET = os.getenv("TUYA_ACCESS_SECRET")
-DEVICE_ID = os.getenv("TUYA_DEVICE_ID")  # ID zařízení z Tuya IoT Platform
 
-CENY_SOUBOR = "ceny_ote.csv"  # Ranní CSV se staženými cenami
-TUYA_ENDPOINT = "https://openapi.tuyaeu.com"  # EU datacentrum
+AIO_USERNAME = os.getenv("AIO_USERNAME")
+AIO_KEY = os.getenv("AIO_KEY")
+AIO_FEED = os.getenv("AIO_FEED")
 
 # ====== FUNKCE ======
 
@@ -29,18 +28,18 @@ def nacti_ceny():
     return pd.read_csv(CENY_SOUBOR)
 
 def je_cena_aktualni_pod_limitem(df):
-    """Z lokálních dat zjistí, zda je cena pro aktuální hodinu (ČR) pod limitem."""
+    """Zjistí, zda je cena pro aktuální hodinu (ČR) pod limitem."""
     prague_time = datetime.now(ZoneInfo("Europe/Prague"))
     aktualni_hodina = prague_time.hour + 1  # Cena platí DO této hodiny
     cena_radek = df[df["Hodina"] == aktualni_hodina]
     if cena_radek.empty:
         raise Exception(f"❌ Nenalezena cena pro hodinu {aktualni_hodina}!")
     cena = cena_radek.iloc[0]["Cena (EUR/MWh)"]
-    print(f"🔍 Cena pro {aktualni_hodina - 1}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
+    print(f"🔍 Cena pro {aktualni_hodina-1}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
     return cena < LIMIT_EUR
 
 def odesli_telegram_zpravu(zprava):
-    """Odešle textovou zprávu na Telegram."""
+    """Odešle zprávu na Telegram."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Telegram není nastaven – přeskočeno")
         return
@@ -54,47 +53,38 @@ def odesli_telegram_zpravu(zprava):
         print(f"⚠️ Telegram výjimka: {e}")
 
 def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
-    """Opakované pokusy o přepnutí relé s potvrzením stavu (přes Tuya Connector)."""
-    print("🔌 Připojuji se k Tuya API…")
-    openapi = TuyaOpenAPI(TUYA_ENDPOINT, API_KEY, API_SECRET)
-    openapi.connect()
+    """Ovládá relé přes Adafruit IO MQTT."""
+    pozadovany_stav = "ON" if pod_limitem else "OFF"
+    akce_text = "ZAPNUTO" if pod_limitem else "VYPNUTO"
 
-    pozadovany_stav = bool(pod_limitem)  # True = ON, False = OFF
-    akce_text = "ZAPNUTO" if pozadovany_stav else "VYPNUTO"
-    command = [{"code": "switch_1", "value": pozadovany_stav}]
+    broker = "io.adafruit.com"
+    port = 1883
+    topic = f"{AIO_USERNAME}/feeds/{AIO_FEED}"
+
+    client = mqtt.Client()
+    client.username_pw_set(AIO_USERNAME, AIO_KEY)
+    client.connect(broker, port, 60)
 
     for pokus in range(1, pokusy + 1):
         print(f"🧪 Pokus {pokus}: nastavování stavu {akce_text}…")
-        openapi.post(f"/v1.0/devices/{DEVICE_ID}/commands", {"commands": command})
+        client.publish(topic, pozadovany_stav)
+        time.sleep(2)  # krátké čekání pro odeslání
 
-        time.sleep(cekani)  # čekáme mezi pokusy
+        # V tomto testovacím režimu nepotvrzujeme zpětně stav, protože Adafruit IO
+        # standardně neposílá aktuální stav bez subscribe.
+        cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
+        odesli_telegram_zpravu(f"✅ <b>Relé {akce_text}</b> ({cas} ČR) – odesláno na MQTT (pokus {pokus})")
+        return  # po prvním úspěšném odeslání končíme
 
-        status_data = openapi.get(f"/v1.0/devices/{DEVICE_ID}/status")
-        aktualni_stav = None
-        for item in status_data.get("result", []):
-            if item["code"] == "switch_1":
-                aktualni_stav = item["value"]
-                break
-
-        if aktualni_stav == pozadovany_stav:
-            print(f"✅ Relé úspěšně přepnuto ({akce_text}) na pokus {pokus}")
-            cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-            odesli_telegram_zpravu(f"✅ <b>Relé {akce_text}</b> ({cas} ČR) – potvrzeno (pokus {pokus})")
-            return
-        else:
-            print(f"⚠️ Nepodařilo se potvrdit stav. Zkusím znovu za {cekani} sekund…")
-
-    # Po neúspěchu všech pokusů
+    # Pokud se nepodaří
     cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-    print(f"❌ Nepodařilo se přepnout relé na požadovaný stav ({akce_text}) po {pokusy} pokusech.")
-    odesli_telegram_zpravu(f"❌ <b>Relé NEREAGUJE</b> ({cas} ČR) – nepodařilo se přepnout na {akce_text} po {pokusy} pokusech.")
+    odesli_telegram_zpravu(f"❌ <b>Relé NEREAGUJE</b> ({cas} ČR) – nepodařilo se odeslat MQTT příkaz.")
 
 # ====== HLAVNÍ BĚH ======
 if __name__ == "__main__":
     try:
-        # ⏱ Omezení času provozu (ČR)
         hodina = datetime.now(ZoneInfo("Europe/Prague")).hour
-        if hodina < 4 or hodina > 19:
+        if hodina < 9 or hodina > 19:
             print(f"⏸ Mimo pracovní interval 9–19 h, skript nic neprovádí (aktuálně {hodina} h ČR).")
         else:
             df = nacti_ceny()
