@@ -6,6 +6,7 @@ import os
 import time
 import io
 import matplotlib.pyplot as plt
+from zoneinfo import ZoneInfo  # přidáno pro český čas
 
 # ====== KONFIGURAČNÍ PROMĚNNÉ ======
 LIMIT_EUR = 13.0  # Limitní cena v EUR/MWh
@@ -18,7 +19,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def ziskej_data_z_ote(max_pokusu=5, cekani=300):
     """Stáhne dnešní SPOT ceny z OTE, opakuje při neúspěchu."""
-    dnes = datetime.now()
+    dnes = datetime.now(ZoneInfo("Europe/Prague"))
     den = dnes.strftime("%d")
     mesic = dnes.strftime("%m")
     rok = dnes.strftime("%Y")
@@ -55,7 +56,7 @@ def vytvor_graf(df):
     ax.axhline(LIMIT_EUR, color="red", linestyle="--", label=f"Limit {LIMIT_EUR} EUR/MWh")
     ax.set_xlabel("Hodina")
     ax.set_ylabel("Cena (EUR/MWh)")
-    ax.set_title(f"Ceny elektřiny {datetime.now().strftime('%d.%m.%Y')}")
+    ax.set_title(f"Ceny elektřiny {datetime.now(ZoneInfo('Europe/Prague')).strftime('%d.%m.%Y')}")
     ax.grid(True)
     ax.legend()
 
