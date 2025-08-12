@@ -5,6 +5,7 @@ import os
 import time
 import requests
 from tuya_connector import TuyaOpenAPI
+from zoneinfo import ZoneInfo
 
 # ====== KONFIGURAČNÍ PROMĚNNÉ ======
 LIMIT_EUR = 13.0  # Limitní cena v EUR/MWh
@@ -25,10 +26,7 @@ def nacti_ceny():
     """Načte lokální CSV s cenami."""
     if not os.path.exists(CENY_SOUBOR):
         raise FileNotFoundError(f"❌ Soubor {CENY_SOUBOR} nebyl nalezen!")
-    df = pd.read_csv(CENY_SOUBOR)
-    return df
-
-from zoneinfo import ZoneInfo
+    return pd.read_csv(CENY_SOUBOR)
 
 def je_cena_aktualni_pod_limitem(df):
     """Z lokálních dat zjistí, zda je cena pro aktuální hodinu (ČR) pod limitem."""
@@ -42,6 +40,7 @@ def je_cena_aktualni_pod_limitem(df):
     return cena < LIMIT_EUR
 
 def odesli_telegram_zpravu(zprava):
+    """Odešle textovou zprávu na Telegram."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Telegram není nastaven – přeskočeno")
         return
@@ -60,12 +59,9 @@ def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
     openapi = TuyaOpenAPI(TUYA_ENDPOINT, API_KEY, API_SECRET)
     openapi.connect()
 
-    pozadovany_stav = pod_limitem  # True = ON, False = OFF
+    pozadovany_stav = bool(pod_limitem)  # True = ON, False = OFF
     akce_text = "ZAPNUTO" if pozadovany_stav else "VYPNUTO"
-    import json
-    command = [{"code": "switch_1", "value": bool(pozadovany_stav)}]
-    openapi.post(f"/v1.0/devices/{DEVICE_ID}/commands", {"commands": command})
-
+    command = [{"code": "switch_1", "value": pozadovany_stav}]
 
     for pokus in range(1, pokusy + 1):
         print(f"🧪 Pokus {pokus}: nastavování stavu {akce_text}…")
@@ -80,29 +76,20 @@ def ovladej_rele(pod_limitem, pokusy=3, cekani=60):
                 aktualni_stav = item["value"]
                 break
 
-            from zoneinfo import ZoneInfo
-
-            # ...
-
-            if aktualni_stav == pozadovany_stav:
-                print(f"✅ Relé úspěšně přepnuto ({akce_text}) na pokus {pokus}")
-                cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-                odesli_telegram_zpravu(f"✅ <b>Relé {akce_text}</b> ({cas} ČR) – potvrzeno (pokus {pokus})")
-                return
-            else:
-                print(f"⚠️ Nepodařilo se potvrdit stav. Zkusím znovu za {cekani} sekund…")
-
+        if aktualni_stav == pozadovany_stav:
+            print(f"✅ Relé úspěšně přepnuto ({akce_text}) na pokus {pokus}")
+            cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
+            odesli_telegram_zpravu(f"✅ <b>Relé {akce_text}</b> ({cas} ČR) – potvrzeno (pokus {pokus})")
+            return
+        else:
+            print(f"⚠️ Nepodařilo se potvrdit stav. Zkusím znovu za {cekani} sekund…")
 
     # Po neúspěchu všech pokusů
-    from zoneinfo import ZoneInfo
-    print(f"❌ Nepodařilo se přepnout relé na požadovaný stav ({akce_text}) po {pokusy} pokusech.")
     cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
+    print(f"❌ Nepodařilo se přepnout relé na požadovaný stav ({akce_text}) po {pokusy} pokusech.")
     odesli_telegram_zpravu(f"❌ <b>Relé NEREAGUJE</b> ({cas} ČR) – nepodařilo se přepnout na {akce_text} po {pokusy} pokusech.")
 
 # ====== HLAVNÍ BĚH ======
-from zoneinfo import ZoneInfo
-
-# ...
 if __name__ == "__main__":
     try:
         # ⏱ Omezení času provozu (ČR)
