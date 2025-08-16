@@ -167,7 +167,7 @@ def main():
     try:
         prg_now = datetime.now(ZoneInfo("Europe/Prague"))
         hod = prg_now.hour
-        if hod < 9 or hod > 19:
+        if hod < 0 or hod > 19:
             print(f"⏸ Mimo interval 9–19 h ({hod} h).")
             return
 
