@@ -33,7 +33,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # MQTT parametry (Adafruit IO)
 MQTT_BROKER = "io.adafruit.com"
-MQTT_PORT = int(os.getenv("MQTT_PORT", "8883"))  # default TLS port 8883
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))  # default TLS port 8883
 MQTT_KEEPALIVE = 60
 
 # Pokusy / čekání
