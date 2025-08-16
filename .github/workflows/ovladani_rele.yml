@@ -1,12 +1,10 @@
-name: Ovládání WiFi relé (9–19)
+name: Ovládání WiFi relé (9-19)
 
 on:
   workflow_dispatch:
   schedule:
-    # zimní čas CET = 9–19 ČR
-    - cron: '0 7-17 * 11,12,1,2,3 *'
-    # letní čas CEST = 9–19 ČR
-    - cron: '0 6-16 * 4,5,6,7,8,9,10 *'
+    - cron: '0 7-17 * 11,12,1,2,3 *'   # zimní čas CET = 9–19 ČR
+    - cron: '0 6-16 * 4,5,6,7,8,9,10 *' # letní čas CEST = 9–19 ČR
 
 jobs:
   run:
@@ -15,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests pandas paho-mqtt
+          pip install requests pandas openpyxl paho-mqtt
 
       - name: Run relay control script
         run: python ovladani_rele.py
@@ -34,3 +34,12 @@ jobs:
           AIO_USERNAME: ${{ secrets.AIO_USERNAME }}
           AIO_KEY: ${{ secrets.AIO_KEY }}
           AIO_FEED: ${{ secrets.AIO_FEED }}
+          LIMIT_EUR: ${{ secrets.LIMIT_EUR }}
+
+      - name: Commit last state file
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add posledni_stav.txt || true
+          git commit -m "Update posledni_stav.txt" || echo "No changes to commit"
+          git push
