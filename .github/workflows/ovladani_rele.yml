@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,15 +29,9 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          AIO_USERNAME: ${{ secrets.AIO_USERNAME }}
-          AIO_KEY: ${{ secrets.AIO_KEY }}
-          AIO_FEED: ${{ secrets.AIO_FEED }}
-          LIMIT_EUR: ${{ secrets.LIMIT_EUR }}
-
-      - name: Commit last state file
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add posledni_stav.txt || true
-          git commit -m "Update posledni_stav.txt" || echo "No changes to commit"
-          git push
+          EMQX_BROKER: ${{ secrets.EMQX_BROKER }}
+          EMQX_PORT: ${{ secrets.EMQX_PORT }}
+          EMQX_USERNAME: ${{ secrets.EMQX_USERNAME }}
+          EMQX_PASSWORD: ${{ secrets.EMQX_PASSWORD }}
+          EMQX_TOPIC_COMMAND: ${{ secrets.EMQX_TOPIC_COMMAND }}
+          EMQX_TOPIC_STATUS: ${{ secrets.EMQX_TOPIC_STATUS }}
