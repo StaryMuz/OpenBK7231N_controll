@@ -29,9 +29,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          EMQX_BROKER: ${{ secrets.EMQX_BROKER }}
-          EMQX_PORT: ${{ secrets.EMQX_PORT }}
-          EMQX_USERNAME: ${{ secrets.EMQX_USERNAME }}
-          EMQX_PASSWORD: ${{ secrets.EMQX_PASSWORD }}
-          EMQX_TOPIC_COMMAND: ${{ secrets.EMQX_TOPIC_COMMAND }}
-          EMQX_TOPIC_STATUS: ${{ secrets.EMQX_TOPIC_STATUS }}
+          MQTT_BROKER: ${{ secrets.MQTT_BROKER }}       # např. maqiatto.com
+          MQTT_PORT: ${{ secrets.MQTT_PORT }}           # 1883
+          MQTT_USER: ${{ secrets.MQTT_USER }}           # např. starymuz@centrum.cz
+          MQTT_PASS: ${{ secrets.MQTT_PASS }}           # heslo z Maqiatto
+          MQTT_BASE: ${{ secrets.MQTT_BASE }}           # např. rele
