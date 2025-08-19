@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from zoneinfo import ZoneInfo  # přidáno pro český čas
 
 # ====== KONFIGURAČNÍ PROMĚNNÉ ======
-LIMIT_EUR = 13.0  # Limitní cena v EUR/MWh
+LIMIT_EUR = float(os.getenv("LIMIT_EUR", "13.0"))
 
 # Přístupové údaje z GitHub Secrets / .env
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
