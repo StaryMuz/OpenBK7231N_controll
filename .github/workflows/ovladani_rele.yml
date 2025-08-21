@@ -23,6 +23,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests pandas openpyxl paho-mqtt
 
+      - name: Restore relay state
+        uses: actions/cache@v4
+        with:
+          path: posledni_stav.txt
+          key: posledni-stav
+
       - name: Run relay control script
         run: python ovladani_rele.py
         env:
@@ -33,3 +39,9 @@ jobs:
           MQTT_USER:          ${{ secrets.MQTT_USER }}     # např. starymuz@centrum.cz
           MQTT_PASS:          ${{ secrets.MQTT_PASS }}     # heslo z Maqiatto
           MQTT_BASE:          ${{ secrets.MQTT_BASE }}     # starymuz@centrum.cz/rele
+
+      - name: Save relay state
+        uses: actions/cache/save@v4
+        with:
+          path: posledni_stav.txt
+          key: posledni-stav
