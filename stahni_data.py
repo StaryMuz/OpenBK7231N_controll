@@ -84,12 +84,25 @@ def zjisti_intervaly_pod_limitem(df):
         intervaly.append(f"{start:02d}:00–{prev:02d}:00")
     return intervaly
 
+def odesli_telegram_text(text):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️ Telegram není nastaven – přeskočeno")
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    data = {"chat_id": TELEGRAM_CHAT_ID, "text": text}
+    try:
+        resp = requests.post(url, data=data)
+        if resp.status_code != 200:
+            print(f"⚠️ Telegram API chyba: {resp.text}")
+    except Exception as e:
+        print(f"⚠️ Telegram výjimka: {e}")
+
 def odesli_telegram_graf(buf, intervaly):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Telegram není nastaven – přeskočeno")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
-    popis = "Cena pod limitem v časech:\n" + "\n".join(intervaly) if intervaly else "Dnes žádné ceny pod limitem."
+    popis = "Cena pod limitem v časech:\n" + "\n".join(intervaly)
     files = {"photo": ("graf.png", buf, "image/png")}
     data = {"chat_id": TELEGRAM_CHAT_ID, "caption": popis}
     try:
@@ -103,7 +116,12 @@ def odesli_telegram_graf(buf, intervaly):
 if __name__ == "__main__":
     df = ziskej_data_z_ote()
     uloz_csv(df)
-    graf_buf = vytvor_graf(df)
     intervaly = zjisti_intervaly_pod_limitem(df)
-    odesli_telegram_graf(graf_buf, intervaly)
+
+    if intervaly:
+        graf_buf = vytvor_graf(df)
+        odesli_telegram_graf(graf_buf, intervaly)
+    else:
+        odesli_telegram_text("Dnes žádné ceny pod limitem.")
+
     print("🏁 Hotovo.")
