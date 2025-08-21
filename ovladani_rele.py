@@ -2,9 +2,10 @@
 """
 ovladani_rele.py
 Ovládání relé přes MQTT (Maqiatto) podle cen z ceny_ote.csv.
-- 3 pokusy, 60 s čekání mezi pokusy
+- 3 pokusy, 60 s čekání mezi pokusy (čeká i na cyklické /1/get)
 - potvrzení stavu přes topic /1/get
 - český čas (Europe/Prague)
+- Telegram se posílá jen při změně stavu oproti posledni_stav.txt
 """
 
 import os
@@ -17,26 +18,30 @@ import pandas as pd
 import paho.mqtt.client as mqtt
 
 # ====== KONFIGURACE ======
-CAS_OD = 9
+CAS_OD = 0
 CAS_DO = 19
 LIMIT_EUR = 13.0
 CENY_SOUBOR = "ceny_ote.csv"
 POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"
 
+# MQTT (z GitHub secrets)
 MQTT_BROKER   = os.getenv("MQTT_BROKER")
 MQTT_PORT     = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_USER     = os.getenv("MQTT_USER")
 MQTT_PASS     = os.getenv("MQTT_PASS")
-MQTT_BASE     = os.getenv("MQTT_BASE")
+MQTT_BASE     = os.getenv("MQTT_BASE")  # např. starymuz@centrum.cz/rele
 
+# Telegram (volitelné)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 
+# Pokusy / čekání
 POKUSY = 3
-CEKANI_SEKUND = 60   # delší timeout kvůli cyklickému hlášení OBK
+CEKANI_SEKUND = 60  # čekáme i na cyklické /get ~30–45 s
 
 # ====== HELPERS ======
 def send_telegram(text: str):
+    """Odešle text na Telegram (HTML parse_mode)."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Telegram není nastaven — přeskočeno.")
         return
@@ -54,7 +59,7 @@ def nacti_ceny():
 
 def je_cena_pod_limitem(df):
     prg_now = datetime.now(ZoneInfo("Europe/Prague"))
-    aktualni_hodina = prg_now.hour + 1
+    aktualni_hodina = prg_now.hour + 1  # cena platí DO této hodiny
     row = df[df["Hodina"] == aktualni_hodina]
     if row.empty:
         raise Exception(f"Nenalezena cena pro hodinu {aktualni_hodina}.")
@@ -65,15 +70,19 @@ def je_cena_pod_limitem(df):
 def nacti_posledni_stav():
     if not os.path.exists(POSLEDNI_STAV_SOUBOR):
         return None
-    with open(POSLEDNI_STAV_SOUBOR, "r", encoding="utf-8") as f:
-        stav = f.read().strip()
-        if stav in ("1", "0"):
-            return stav
+    try:
+        with open(POSLEDNI_STAV_SOUBOR, "r", encoding="utf-8") as f:
+            stav = f.read().strip()
+            return stav if stav in ("1", "0") else None
+    except Exception:
         return None
 
 def uloz_posledni_stav(stav: str):
-    with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
-        f.write(stav)
+    try:
+        with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
+            f.write(stav)
+    except Exception as e:
+        print(f"⚠️ Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
 
 # ====== MQTT ovládání ======
 class MqttRelaisController:
@@ -166,28 +175,33 @@ def main():
         akce_text = "ZAPNOUT" if desired_payload == "1" else "VYPNOUT"
         print(f"ℹ️ Rozhodnutí: {akce_text} relé ({cena:.2f} EUR/MWh).")
 
+        # Načteme předchozí známý stav (pro rozhodnutí o Telegramu)
+        posledni_stav = nacti_posledni_stav()
+        print(f"ℹ️ Poslední známý stav: {posledni_stav}")
+
         ctl = MqttRelaisController(MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE)
         ctl.connect(timeout=15)
 
         success = False
-        posledni_stav = nacti_posledni_stav()
 
         for pokus in range(1, POKUSY + 1):
             print(f"--- Pokus {pokus}/{POKUSY} ---")
-            if ctl.publish_and_wait_confirmation(desired_payload, CEKANI_SEKUND):
-                cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-                success = True
 
-                # Telegram jen při změně stavu
-                if desired_payload != posledni_stav:
+            if ctl.publish_and_wait_confirmation(desired_payload, CEKANI_SEKUND):
+                success = True
+                cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
+
+                # Oznámení jen pokud se stav (podle souboru) mění
+                if posledni_stav is None or desired_payload != posledni_stav:
                     msg = f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno."
                     send_telegram(msg)
                 else:
                     print("ℹ️ Stav se nezměnil – zpráva na Telegram nebude odeslána.")
 
-                # vždy uložíme poslední stav
+                # Po úspěchu aktualizujeme záznam stavu (i když se neměnil)
                 uloz_posledni_stav(desired_payload)
                 break
+
             else:
                 print(f"❗ Nepotvrzeno, pokus {pokus}")
                 if pokus < POKUSY:
@@ -196,12 +210,14 @@ def main():
         if not success:
             cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
             send_telegram(f"❌ <b>Relé nereaguje</b> ({cas}).")
+
     except Exception as e:
         print(f"🛑 Chyba: {e}")
         send_telegram(f"🛑 Chyba v ovladani_rele.py: {e}")
     finally:
         try:
-            ctl.disconnect()
+            if ctl:
+                ctl.disconnect()
         except Exception:
             pass
 
