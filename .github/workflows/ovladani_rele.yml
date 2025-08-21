@@ -27,9 +27,9 @@ jobs:
         run: python ovladani_rele.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          MQTT_BROKER: ${{ secrets.MQTT_BROKER }}        # maqiatto.com
-          MQTT_PORT: ${{ secrets.MQTT_PORT }}            # 1883
-          MQTT_USER: ${{ secrets.MQTT_USER }}            # např. starymuz@centrum.cz
-          MQTT_PASS: ${{ secrets.MQTT_PASS }}            # heslo z Maqiatto
-          MQTT_BASE: ${{ secrets.MQTT_BASE }}            # starymuz@centrum.cz/rele
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          MQTT_BROKER:        ${{ secrets.MQTT_BROKER }}   # maqiatto.com
+          MQTT_PORT:          ${{ secrets.MQTT_PORT }}     # 1883
+          MQTT_USER:          ${{ secrets.MQTT_USER }}     # např. starymuz@centrum.cz
+          MQTT_PASS:          ${{ secrets.MQTT_PASS }}     # heslo z Maqiatto
+          MQTT_BASE:          ${{ secrets.MQTT_BASE }}     # starymuz@centrum.cz/rele
