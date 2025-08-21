@@ -64,7 +64,7 @@ def nacti_posledni_stav():
     if not os.path.exists(POSLEDNI_STAV_SOUBOR):
         return None
     with open(POSLEDNI_STAV_SOUBOR, "r", encoding="utf-8") as f:
-        stav = f.read().strip().upper()
+        stav = f.read().strip()
         if stav in ("1", "0"):
             return stav
         return None
@@ -111,12 +111,12 @@ class MqttRelaisController:
     def _on_message(self, client, userdata, msg):
         payload = msg.payload.decode(errors="ignore").strip()
         print(f"📥 MQTT {msg.topic}: {payload}")
-        with self._lock:
-            val = payload.lower()
-            if val in ("on", "off", "1", "0", "true", "false"):
-                norm = "1" if val in ("on", "1", "true") else "0"
-                self._last_payload = norm
+        if payload in ("1", "0"):
+            with self._lock:
+                self._last_payload = payload
                 self._confirm_event.set()
+        else:
+            print(f"⚠️ Neplatná hodnota relé: '{payload}' — ignorováno.")
 
     def connect(self, timeout=10):
         self.client.connect(self.broker, self.port, keepalive=60)
@@ -129,7 +129,6 @@ class MqttRelaisController:
         self.client.disconnect()
 
     def publish_and_wait_confirmation(self, desired_state: str, timeout_seconds: int):
-        desired_state = desired_state.upper()
         if desired_state not in ("1", "0"):
             raise ValueError("Stav musí být '1' nebo '0'.")
 
@@ -137,9 +136,8 @@ class MqttRelaisController:
         with self._lock:
             self._last_payload = None
 
-        mqtt_payload = "1" if desired_state == "1" else "0"
-        print(f"➡️ Publikuji {mqtt_payload} (stav {desired_state}) na {self.topic_set}")
-        self.client.publish(self.topic_set, mqtt_payload)
+        print(f"➡️ Publikuji {desired_state} na {self.topic_set}")
+        self.client.publish(self.topic_set, desired_state)
 
         if not self._confirm_event.wait(timeout_seconds):
             print("⏱ Timeout — žádné potvrzení.")
@@ -152,6 +150,7 @@ class MqttRelaisController:
 
 # ====== HLAVNÍ LOGIKA ======
 def main():
+    ctl = None
     try:
         prg_now = datetime.now(ZoneInfo("Europe/Prague"))
         hod = prg_now.hour
@@ -161,8 +160,8 @@ def main():
 
         df = nacti_ceny()
         pod_limitem, cena = je_cena_pod_limitem(df)
-        desired_payload = 1 if pod_limitem else 0
-        akce_text = "ZAPNOUT" if pod_limitem else "VYPNOUT"
+        desired_payload = "1" if pod_limitem else "0"
+        akce_text = "ZAPNOUT" if desired_payload == "1" else "VYPNOUT"
         print(f"ℹ️ Rozhodnutí: {akce_text} relé ({cena:.2f} EUR/MWh).")
 
         ctl = MqttRelaisController(MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE)
