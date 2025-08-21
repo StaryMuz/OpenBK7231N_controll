@@ -144,7 +144,8 @@ class MqttRelaisController:
             self._last_payload = None
 
         print(f"➡️ Publikuji {desired_state} na {self.topic_set}")
-        self.client.publish(self.topic_set, desired_state)
+        payload = "1" if desired_state == "ON" else "0"
+        self.client.publish(self.topic_set, payload)
 
         if not self._confirm_event.wait(timeout_seconds):
             print("⏱ Timeout — žádné potvrzení.")
@@ -166,7 +167,7 @@ def main():
 
         df = nacti_ceny()
         pod_limitem, cena = je_cena_pod_limitem(df)
-        desired_payload = "ON" if pod_limitem else "OFF"
+        desired_payload = "1" if pod_limitem else "0"
         akce_text = "ZAPNOUT" if pod_limitem else "VYPNOUT"
         print(f"ℹ️ Rozhodnutí: {akce_text} relé ({cena:.2f} EUR/MWh).")
 
