@@ -1,5 +1,6 @@
 name: Ovládání WiFi relé (9-19)
-"on":
+
+on:
   workflow_dispatch:
   schedule:
     - cron: "15 7-17 * 11,12,1,2,3 *"
