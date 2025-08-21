@@ -122,6 +122,6 @@ if __name__ == "__main__":
         graf_buf = vytvor_graf(df)
         odesli_telegram_graf(graf_buf, intervaly)
     else:
-        odesli_telegram_text("ℹ️Dnes žádné ceny pod limitem.")
+        odesli_telegram_text("ℹ️ Dnes žádné ceny pod limitem.")
 
     print("🏁 Hotovo.")
