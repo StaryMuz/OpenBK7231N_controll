@@ -3,9 +3,8 @@
 ovladani_rele.py
 Ovládání relé přes MQTT (Maqiatto) podle cen z ceny_ote.csv.
 - 3 pokusy, 60 s čekání mezi pokusy
-- potvrzení stavu přes topic /get
+- potvrzení stavu přes topic /1/get
 - český čas (Europe/Prague)
-- ukládání posledního stavu do posledni_stav.txt
 """
 
 import os
@@ -20,14 +19,13 @@ import paho.mqtt.client as mqtt
 # ====== KONFIGURACE ======
 LIMIT_EUR = 13.0               # limit v EUR/MWh
 CENY_SOUBOR = "ceny_ote.csv"   # soubor s cenami
-STAV_SOUBOR = "posledni_stav.txt"
 
 # MQTT (z GitHub secrets)
 MQTT_BROKER   = os.getenv("MQTT_BROKER")   # např. maqiatto.com
 MQTT_PORT     = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_USER     = os.getenv("MQTT_USER")     # tvůj login (např. email)
 MQTT_PASS     = os.getenv("MQTT_PASS")     # heslo
-MQTT_BASE     = os.getenv("MQTT_BASE")     # např. starymuz@centrum.cz/rele/1
+MQTT_BASE     = os.getenv("MQTT_BASE")     # např. starymuz@centrum.cz/rele
 
 # Telegram (volitelné)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -65,19 +63,6 @@ def je_cena_pod_limitem(df):
     print(f"🔍 Cena {aktualni_hodina-1}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
     return (cena < LIMIT_EUR, cena)
 
-def uloz_stav(stav: str):
-    with open(STAV_SOUBOR, "w", encoding="utf-8") as f:
-        f.write(stav)
-
-def nacti_stav() -> str | None:
-    if not os.path.exists(STAV_SOUBOR):
-        return None
-    try:
-        with open(STAV_SOUBOR, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    except Exception:
-        return None
-
 # ====== MQTT ovládání ======
 class MqttRelaisController:
     def __init__(self, broker, port, username, password, base_topic):
@@ -86,8 +71,10 @@ class MqttRelaisController:
         self.username = username
         self.password = password
         self.base = base_topic.rstrip("/")  # bez koncové /
-        self.topic_set = f"{self.base}/set"
-        self.topic_get = f"{self.base}/get"
+
+        # ZMĚNA: explicitní topiky
+        self.topic_set = f"{self.base}/1/set"
+        self.topic_get = f"{self.base}/1/get"
 
         self._lock = threading.Lock()
         self._last_payload = None
@@ -176,14 +163,8 @@ def main():
             print(f"--- Pokus {pokus}/{POKUSY} ---")
             if ctl.publish_and_wait_confirmation(desired_payload, CEKANI_SEKUND):
                 cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-                # kontrola změny oproti minulému stavu
-                posledni = nacti_stav()
-                if posledni != desired_payload:
-                    msg = f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno."
-                    send_telegram(msg)
-                    uloz_stav(desired_payload)
-                else:
-                    print("ℹ️ Stav se nezměnil – zpráva na Telegram neodeslána.")
+                msg = f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno."
+                send_telegram(msg)
                 success = True
                 break
             else:
