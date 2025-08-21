@@ -198,4 +198,13 @@ def main():
             cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
             send_telegram(f"❌ <b>Relé nereaguje</b> ({cas}).")
     except Exception as e:
-       
+        print(f"🛑 Chyba: {e}")
+        send_telegram(f"🛑 Chyba v ovladani_rele.py: {e}")
+    finally:
+        try:
+            ctl.disconnect()
+        except Exception:
+            pass
+
+if __name__ == "__main__":
+    main()
