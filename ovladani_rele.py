@@ -31,7 +31,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 
 POKUSY = 3
-CEKANI_SEKUND = 60
+CEKANI_SEKUND = 60   # delší timeout kvůli cyklickému hlášení OBK
 
 # ====== HELPERS ======
 def send_telegram(text: str):
@@ -176,12 +176,15 @@ def main():
                 cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
                 success = True
 
+                # Telegram jen při změně stavu
                 if desired_payload != posledni_stav:
                     msg = f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno."
                     send_telegram(msg)
-                    uloz_posledni_stav(desired_payload)
                 else:
                     print("ℹ️ Stav se nezměnil – zpráva na Telegram nebude odeslána.")
+
+                # vždy uložíme poslední stav
+                uloz_posledni_stav(desired_payload)
                 break
             else:
                 print(f"❗ Nepotvrzeno, pokus {pokus}")
