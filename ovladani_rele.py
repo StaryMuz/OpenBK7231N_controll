@@ -192,7 +192,7 @@ def main():
             else:
                 print(f"❗ Nepotvrzeno, pokus {pokus}")
                 if pokus < POKUSY:
-                    time.sleep(5)
+                    time.sleep(10)
 
         if not success:
             cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
