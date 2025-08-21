@@ -17,6 +17,8 @@ import pandas as pd
 import paho.mqtt.client as mqtt
 
 # ====== KONFIGURACE ======
+CAS_OD = 9
+CAS_DO = 19
 LIMIT_EUR = 13.0
 CENY_SOUBOR = "ceny_ote.csv"
 POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"
@@ -154,8 +156,8 @@ def main():
     try:
         prg_now = datetime.now(ZoneInfo("Europe/Prague"))
         hod = prg_now.hour
-        if hod < 9 or hod > 19:
-            print(f"⏸ Mimo 9–19 h ({hod}). Konec.")
+        if hod < CAS_OD or hod > CAS_DO:
+            print(f"⏸ Mimo CAS_OD–CAS_DO h ({hod}). Konec.")
             return
 
         df = nacti_ceny()
