@@ -17,28 +17,24 @@ import pandas as pd
 import paho.mqtt.client as mqtt
 
 # ====== KONFIGURACE ======
-LIMIT_EUR = 13.0               # limit v EUR/MWh
-CENY_SOUBOR = "ceny_ote.csv"   # soubor s cenami
-POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"  # uchovává poslední známý stav relé
+LIMIT_EUR = 13.0
+CENY_SOUBOR = "ceny_ote.csv"
+POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"
 
-# MQTT (z GitHub secrets)
-MQTT_BROKER   = os.getenv("MQTT_BROKER")   # např. maqiatto.com
+MQTT_BROKER   = os.getenv("MQTT_BROKER")
 MQTT_PORT     = int(os.getenv("MQTT_PORT", "1883"))
-MQTT_USER     = os.getenv("MQTT_USER")     # tvůj login (např. email)
-MQTT_PASS     = os.getenv("MQTT_PASS")     # heslo
-MQTT_BASE     = os.getenv("MQTT_BASE")     # např. starymuz@centrum.cz/rele
+MQTT_USER     = os.getenv("MQTT_USER")
+MQTT_PASS     = os.getenv("MQTT_PASS")
+MQTT_BASE     = os.getenv("MQTT_BASE")
 
-# Telegram (volitelné)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 
-# Pokusy / čekání
 POKUSY = 3
 CEKANI_SEKUND = 60
 
 # ====== HELPERS ======
 def send_telegram(text: str):
-    """Odešle text na Telegram (HTML parse_mode)."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Telegram není nastaven — přeskočeno.")
         return
@@ -56,7 +52,7 @@ def nacti_ceny():
 
 def je_cena_pod_limitem(df):
     prg_now = datetime.now(ZoneInfo("Europe/Prague"))
-    aktualni_hodina = prg_now.hour + 1  # cena platí DO této hodiny
+    aktualni_hodina = prg_now.hour + 1
     row = df[df["Hodina"] == aktualni_hodina]
     if row.empty:
         raise Exception(f"Nenalezena cena pro hodinu {aktualni_hodina}.")
@@ -65,7 +61,6 @@ def je_cena_pod_limitem(df):
     return (cena < LIMIT_EUR, cena)
 
 def nacti_posledni_stav():
-    """Načte poslední známý stav relé ze souboru."""
     if not os.path.exists(POSLEDNI_STAV_SOUBOR):
         return None
     with open(POSLEDNI_STAV_SOUBOR, "r", encoding="utf-8") as f:
@@ -75,7 +70,6 @@ def nacti_posledni_stav():
         return None
 
 def uloz_posledni_stav(stav: str):
-    """Uloží aktuální stav relé do souboru."""
     with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
         f.write(stav)
 
@@ -86,7 +80,7 @@ class MqttRelaisController:
         self.port = port
         self.username = username
         self.password = password
-        self.base = base_topic.rstrip("/")  # bez koncové /
+        self.base = base_topic.rstrip("/")
 
         self.topic_set = f"{self.base}/1/set"
         self.topic_get = f"{self.base}/1/get"
@@ -143,9 +137,9 @@ class MqttRelaisController:
         with self._lock:
             self._last_payload = None
 
-        print(f"➡️ Publikuji {desired_state} na {self.topic_set}")
-        payload = "1" if desired_state == "ON" else "0"
-        self.client.publish(self.topic_set, payload)
+        mqtt_payload = "1" if desired_state == "ON" else "0"
+        print(f"➡️ Publikuji {mqtt_payload} (stav {desired_state}) na {self.topic_set}")
+        self.client.publish(self.topic_set, mqtt_payload)
 
         if not self._confirm_event.wait(timeout_seconds):
             print("⏱ Timeout — žádné potvrzení.")
@@ -167,7 +161,7 @@ def main():
 
         df = nacti_ceny()
         pod_limitem, cena = je_cena_pod_limitem(df)
-        desired_payload = "1" if pod_limitem else "0"
+        desired_payload = "ON" if pod_limitem else "OFF"
         akce_text = "ZAPNOUT" if pod_limitem else "VYPNOUT"
         print(f"ℹ️ Rozhodnutí: {akce_text} relé ({cena:.2f} EUR/MWh).")
 
