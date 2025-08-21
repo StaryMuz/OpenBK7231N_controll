@@ -19,6 +19,7 @@ import paho.mqtt.client as mqtt
 # ====== KONFIGURACE ======
 LIMIT_EUR = 13.0               # limit v EUR/MWh
 CENY_SOUBOR = "ceny_ote.csv"   # soubor s cenami
+POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"  # uchovává poslední známý stav relé
 
 # MQTT (z GitHub secrets)
 MQTT_BROKER   = os.getenv("MQTT_BROKER")   # např. maqiatto.com
@@ -63,6 +64,21 @@ def je_cena_pod_limitem(df):
     print(f"🔍 Cena {aktualni_hodina-1}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
     return (cena < LIMIT_EUR, cena)
 
+def nacti_posledni_stav():
+    """Načte poslední známý stav relé ze souboru."""
+    if not os.path.exists(POSLEDNI_STAV_SOUBOR):
+        return None
+    with open(POSLEDNI_STAV_SOUBOR, "r", encoding="utf-8") as f:
+        stav = f.read().strip().upper()
+        if stav in ("ON", "OFF"):
+            return stav
+        return None
+
+def uloz_posledni_stav(stav: str):
+    """Uloží aktuální stav relé do souboru."""
+    with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
+        f.write(stav)
+
 # ====== MQTT ovládání ======
 class MqttRelaisController:
     def __init__(self, broker, port, username, password, base_topic):
@@ -72,7 +88,6 @@ class MqttRelaisController:
         self.password = password
         self.base = base_topic.rstrip("/")  # bez koncové /
 
-        # ZMĚNA: explicitní topiky
         self.topic_set = f"{self.base}/1/set"
         self.topic_get = f"{self.base}/1/get"
 
@@ -159,29 +174,28 @@ def main():
         ctl.connect(timeout=15)
 
         success = False
+        posledni_stav = nacti_posledni_stav()
+
         for pokus in range(1, POKUSY + 1):
             print(f"--- Pokus {pokus}/{POKUSY} ---")
             if ctl.publish_and_wait_confirmation(desired_payload, CEKANI_SEKUND):
                 cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-                msg = f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno."
-                send_telegram(msg)
                 success = True
+
+                if desired_payload != posledni_stav:
+                    msg = f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno."
+                    send_telegram(msg)
+                    uloz_posledni_stav(desired_payload)
+                else:
+                    print("ℹ️ Stav se nezměnil – zpráva na Telegram nebude odeslána.")
                 break
             else:
                 print(f"❗ Nepotvrzeno, pokus {pokus}")
                 if pokus < POKUSY:
                     time.sleep(5)
+
         if not success:
             cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
             send_telegram(f"❌ <b>Relé nereaguje</b> ({cas}).")
     except Exception as e:
-        print(f"🛑 Chyba: {e}")
-        send_telegram(f"🛑 Chyba v ovladani_rele.py: {e}")
-    finally:
-        try:
-            ctl.disconnect()
-        except Exception:
-            pass
-
-if __name__ == "__main__":
-    main()
+       
