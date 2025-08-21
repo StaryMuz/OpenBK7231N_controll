@@ -157,7 +157,7 @@ def main():
         prg_now = datetime.now(ZoneInfo("Europe/Prague"))
         hod = prg_now.hour
         if hod < CAS_OD or hod > CAS_DO:
-            print(f"⏸ Mimo CAS_OD–CAS_DO h ({hod}). Konec.")
+            print(f"⏸ Mimo {CAS_OD}–{CAS_DO} h ({hod}). Konec.")
             return
 
         df = nacti_ceny()
