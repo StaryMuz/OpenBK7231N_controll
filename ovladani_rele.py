@@ -3,7 +3,7 @@
 ovladani_rele.py
 Ovládání relé přes MQTT (Maqiatto) podle cen z ceny_ote.csv.
 - 3 pokusy, 60 s čekání mezi pokusy
-- potvrzení stavu přes topic /get
+- potvrzení stavu přes topic /1/get
 - český čas (Europe/Prague)
 """
 
@@ -71,8 +71,10 @@ class MqttRelaisController:
         self.username = username
         self.password = password
         self.base = base_topic.rstrip("/")  # bez koncové /
-        self.topic_set = f"{self.base}/set"
-        self.topic_get = f"{self.base}/get"
+
+        # ZMĚNA: explicitní topiky
+        self.topic_set = f"{self.base}/1/set"
+        self.topic_get = f"{self.base}/1/get"
 
         self._lock = threading.Lock()
         self._last_payload = None
