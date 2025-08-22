@@ -31,6 +31,7 @@ jobs:
         with:
           name: posledni-stav
           path: .
+        continue-on-error: true  # ✅ NEUKONČIT při chybě
 
       - name: Run relay control script
         run: python ovladani_rele.py
