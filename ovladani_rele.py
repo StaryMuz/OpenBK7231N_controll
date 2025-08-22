@@ -77,6 +77,7 @@ def nacti_posledni_stav():
 
 def uloz_posledni_stav(stav: int):
     try:
+        print(f"💾 Ukládám stav {stav} do {POSLEDNI_STAV_SOUBOR}")
         with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
             f.write(str(stav))
     except Exception as e:
