@@ -73,14 +73,16 @@ def nacti_posledni_stav():
     try:
         with open(POSLEDNI_STAV_SOUBOR, "r", encoding="utf-8") as f:
             stav = f.read().strip()
-            return stav if stav in ("1", "0") else None
+            if stav in ("1", "0"):
+                return int(stav)  # vracíme číselný typ 1/0
+            return None
     except Exception:
         return None
 
-def uloz_posledni_stav(stav: str):
+def uloz_posledni_stav(stav: int):
     try:
         with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
-            f.write(stav)
+            f.write(str(stav))  # ukládáme jako text, hodnota je číselná 1/0
     except Exception as e:
         print(f"⚠️ Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
 
@@ -172,6 +174,7 @@ def main():
         df = nacti_ceny()
         pod_limitem, cena = je_cena_pod_limitem(df)
         desired_payload = "1" if pod_limitem else "0"
+        desired_payload_int = 1 if pod_limitem else 0  # číselná podoba pro porovnání a uložení
         akce_text = "ZAPNOUT" if desired_payload == "1" else "VYPNOUT"
         print(f"ℹ️ Rozhodnutí: {akce_text} relé ({cena:.2f} EUR/MWh).")
 
@@ -192,14 +195,14 @@ def main():
                 cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
 
                 # Oznámení jen pokud se stav (podle souboru) mění
-                if posledni_stav is None or desired_payload != posledni_stav:
+                if posledni_stav is None or desired_payload_int != posledni_stav:
                     msg = f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno."
                     send_telegram(msg)
                 else:
                     print("ℹ️ Stav se nezměnil – zpráva na Telegram nebude odeslána.")
 
                 # Po úspěchu aktualizujeme záznam stavu (i když se neměnil)
-                uloz_posledni_stav(desired_payload)
+                uloz_posledni_stav(desired_payload_int)
                 break
 
             else:
