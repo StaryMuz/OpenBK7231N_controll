@@ -47,6 +47,9 @@ jobs:
       - name: Test zápisu do souboru
         run: echo "Test" > test_soubor.txt && cat test_soubor.txt
 
+      - name: Debug – list files
+        run: ls -la
+
       - name: Upload current relay state
         if: always()
         uses: actions/upload-artifact@v4
