@@ -56,3 +56,12 @@ jobs:
         with:
           name: posledni-stav
           path: ./posledni_stav.txt
+
+      - name: Commit and push last state
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add posledni_stav.txt
+          git commit -m "Aktualizace posledni_stav.txt" || echo "Žádná změna – commit se neprovádí."
+          git push || echo "Nic k pushnutí."
+          
