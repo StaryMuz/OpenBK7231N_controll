@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 ovladani_rele.py
-Ovládání relé přes MQTT (Maqiatto) podle cen z ceny_ote.csv.
-- 3 pokusy, 60 s čekání mezi pokusy (čeká i na cyklické /1/get)
-- potvrzení stavu přes topic /1/get
-- český čas (Europe/Prague)
-- Telegram se posílá jen při změně stavu oproti posledni_stav.txt
+Upraveno dle požadavků:
+- relé se vždy zapne/vypne podle aktuální ceny bez porovnání s minulým stavem
+- Telegram oznámení se odešle jen při změně stavu oproti poslední_stav.txt
+- do souboru se uloží nový stav jen při potvrzeném přepnutí
 """
 
 import os
@@ -37,11 +36,10 @@ TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 
 # Pokusy / čekání
 POKUSY = 3
-CEKANI_SEKUND = 60  # čekáme i na cyklické /get ~30–45 s
+CEKANI_SEKUND = 60
 
 # ====== HELPERS ======
 def send_telegram(text: str):
-    """Odešle text na Telegram (HTML parse_mode)."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Telegram není nastaven — přeskočeno.")
         return
@@ -59,7 +57,7 @@ def nacti_ceny():
 
 def je_cena_pod_limitem(df):
     prg_now = datetime.now(ZoneInfo("Europe/Prague"))
-    aktualni_hodina = prg_now.hour + 2  # cena platí DO této hodiny
+    aktualni_hodina = prg_now.hour + 2
     row = df[df["Hodina"] == aktualni_hodina]
     if row.empty:
         raise Exception(f"Nenalezena cena pro hodinu {aktualni_hodina}.")
@@ -73,20 +71,18 @@ def nacti_posledni_stav():
     try:
         with open(POSLEDNI_STAV_SOUBOR, "r", encoding="utf-8") as f:
             stav = f.read().strip()
-            if stav in ("1", "0"):
-                return int(stav)  # vracíme číselný typ 1/0
-            return None
+            return int(stav) if stav in ("0", "1") else None
     except Exception:
         return None
 
 def uloz_posledni_stav(stav: int):
     try:
         with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
-            f.write(str(stav))  # ukládáme jako text, hodnota je číselná 1/0
+            f.write(str(stav))
     except Exception as e:
         print(f"⚠️ Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
 
-# ====== MQTT ovládání ======
+# ====== MQTT třída ======
 class MqttRelaisController:
     def __init__(self, broker, port, username, password, base_topic):
         self.broker = broker
@@ -128,8 +124,6 @@ class MqttRelaisController:
             with self._lock:
                 self._last_payload = payload
                 self._confirm_event.set()
-        else:
-            print(f"⚠️ Neplatná hodnota relé: '{payload}' — ignorováno.")
 
     def connect(self, timeout=10):
         self.client.connect(self.broker, self.port, keepalive=60)
@@ -174,11 +168,9 @@ def main():
         df = nacti_ceny()
         pod_limitem, cena = je_cena_pod_limitem(df)
         desired_payload = "1" if pod_limitem else "0"
-        desired_payload_int = 1 if pod_limitem else 0  # číselná podoba pro porovnání a uložení
+        desired_payload_int = int(desired_payload)
         akce_text = "ZAPNOUT" if desired_payload == "1" else "VYPNOUT"
-        print(f"ℹ️ Rozhodnutí: {akce_text} relé ({cena:.2f} EUR/MWh).")
 
-        # Načteme předchozí známý stav (pro rozhodnutí o Telegramu)
         posledni_stav = nacti_posledni_stav()
         print(f"ℹ️ Poslední známý stav: {posledni_stav}")
 
@@ -186,7 +178,6 @@ def main():
         ctl.connect(timeout=15)
 
         success = False
-
         for pokus in range(1, POKUSY + 1):
             print(f"--- Pokus {pokus}/{POKUSY} ---")
 
@@ -194,17 +185,16 @@ def main():
                 success = True
                 cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
 
-                # Oznámení jen pokud se stav (podle souboru) mění
-                if posledni_stav is None or desired_payload_int != posledni_stav:
+                # 🔄 upraveno – Oznámení jen při změně oproti souboru
+                if posledni_stav != desired_payload_int:
                     msg = f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno."
                     send_telegram(msg)
                 else:
-                    print("ℹ️ Stav se nezměnil – zpráva na Telegram nebude odeslána.")
+                    print("ℹ️ Stav se nezměnil – Telegram se neposílá.")
 
-                # Po úspěchu aktualizujeme záznam stavu (i když se neměnil)
+                # 🔄 upraveno – uložíme jen po potvrzení
                 uloz_posledni_stav(desired_payload_int)
                 break
-
             else:
                 print(f"❗ Nepotvrzeno, pokus {pokus}")
                 if pokus < POKUSY:
