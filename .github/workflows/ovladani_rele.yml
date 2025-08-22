@@ -44,6 +44,9 @@ jobs:
           MQTT_PASS:          ${{ secrets.MQTT_PASS }}
           MQTT_BASE:          ${{ secrets.MQTT_BASE }}
 
+      - name: Test zápisu do souboru
+        run: echo "Test" > test_soubor.txt && cat test_soubor.txt
+
       - name: Upload current relay state
         if: always()
         uses: actions/upload-artifact@v4
