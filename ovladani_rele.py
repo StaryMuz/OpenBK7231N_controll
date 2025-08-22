@@ -17,7 +17,7 @@ import pandas as pd
 import paho.mqtt.client as mqtt
 
 # ====== KONFIGURACE ======
-CAS_OD = 0
+CAS_OD = 9
 CAS_DO = 19
 LIMIT_EUR = 13.0
 CENY_SOUBOR = "ceny_ote.csv"
