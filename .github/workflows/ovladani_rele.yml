@@ -55,4 +55,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: posledni-stav
-          path: posledni_stav.txt
+          path: ./posledni_stav.txt
