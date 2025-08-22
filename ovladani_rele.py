@@ -59,7 +59,7 @@ def nacti_ceny():
 
 def je_cena_pod_limitem(df):
     prg_now = datetime.now(ZoneInfo("Europe/Prague"))
-    aktualni_hodina = prg_now.hour + 1  # cena platí DO této hodiny
+    aktualni_hodina = prg_now.hour + 2  # cena platí DO této hodiny
     row = df[df["Hodina"] == aktualni_hodina]
     if row.empty:
         raise Exception(f"Nenalezena cena pro hodinu {aktualni_hodina}.")
