@@ -18,7 +18,7 @@ import pandas as pd
 import paho.mqtt.client as mqtt
 
 # ====== KONFIGURACE ======
-CAS_OD = 1
+CAS_OD = 9
 CAS_DO = 19
 LIMIT_EUR = 13.0
 CENY_SOUBOR = "ceny_ote.csv"
@@ -58,7 +58,7 @@ def nacti_ceny():
 
 def je_cena_pod_limitem(df):
     prg_now1 = datetime.now(ZoneInfo("Europe/Prague"))
-    prg_now = prg_now1 + timedelta(minutes=40)
+    prg_now = prg_now1 + timedelta(minutes=30)
     aktualni_hodina = prg_now.hour + 1
     row = df[df["Hodina"] == aktualni_hodina]
     if row.empty:
