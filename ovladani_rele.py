@@ -57,7 +57,7 @@ def nacti_ceny():
 
 def je_cena_pod_limitem(df):
     prg_now1 = datetime.now(ZoneInfo("Europe/Prague"))
-    prg_now = prg:now1 + timedelta(minutes=40)
+    prg_now = prg_now1 + timedelta(minutes=40)
     aktualni_hodina = prg_now.hour + 1
     row = df[df["Hodina"] == aktualni_hodina]
     if row.empty:
