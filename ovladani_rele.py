@@ -56,7 +56,7 @@ def nacti_ceny():
     return pd.read_csv(CENY_SOUBOR)
 
 def je_cena_pod_limitem(df):
-    prg_now = datetime.now(ZoneInfo("Europe/Prague"))+0,95
+    prg_now = datetime.now(ZoneInfo("Europe/Prague"))+0:55
     aktualni_hodina = prg_now.hour + 1
     row = df[df["Hodina"] == aktualni_hodina]
     if row.empty:
