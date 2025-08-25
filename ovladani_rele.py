@@ -122,7 +122,7 @@ class MqttRelaisController:
 
     def _on_message(self, client, userdata, msg):
         payload = msg.payload.decode(errors="ignore").strip()
-    if msg.retain:
+        if msg.retain:
         print(f"⚠️ Ignoruji retained zprávu: {payload}")
         return
         print(f"📥 MQTT {msg.topic}: {payload}")
