@@ -149,6 +149,8 @@ class MqttRelaisController:
         print(f"➡️ Publikuji {desired_state} na {self.topic_set}")
         self.client.publish(self.topic_set, desired_state)
 
+        time.sleep(10)
+
         if not self._confirm_event.wait(timeout_seconds):
             print("⏱ Timeout — žádné potvrzení.")
             return False
@@ -200,8 +202,6 @@ def main():
                 break
             else:
                 print(f"❗ Nepotvrzeno, pokus {pokus}")
-                if pokus < POKUSY:
-                    time.sleep(10)
 
         if not success:
             cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
