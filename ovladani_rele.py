@@ -18,7 +18,7 @@ import pandas as pd
 import paho.mqtt.client as mqtt
 
 # ====== KONFIGURACE ======
-CAS_OD = 9
+CAS_OD = 8
 CAS_DO = 19
 LIMIT_EUR = 13.0
 CENY_SOUBOR = "ceny_ote.csv"
@@ -172,7 +172,7 @@ def main():
         pod_limitem, cena = je_cena_pod_limitem(df)
         desired_payload = "1" if pod_limitem else "0"
         desired_payload_int = int(desired_payload)
-        akce_text = "ZAPNOUT" if desired_payload == "1" else "VYPNOUT"
+        akce_text = "zapnuto" if desired_payload == "1" else "vypnuto"
 
         posledni_stav = nacti_posledni_stav()
         print(f"ℹ️ Poslední známý stav: {posledni_stav}")
@@ -190,7 +190,7 @@ def main():
 
                 # 🔄 upraveno – Oznámení jen při změně oproti souboru
                 if posledni_stav != desired_payload_int:
-                    msg = f"✅ <b>Relé {akce_text}</b> ({cas}) – potvrzeno."
+                    msg = f"✅ <b>Relé {akce_text}</b> ({cas})."
                     send_telegram(msg)
                 else:
                     print("ℹ️ Stav se nezměnil – Telegram se neposílá.")
@@ -205,7 +205,7 @@ def main():
 
         if not success:
             cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-            send_telegram(f"❌ <b>Relé nereaguje</b> ({cas}).")
+            send_telegram(f"❗ <b>Relé nereaguje</b> ({cas}).")
 
     except Exception as e:
         print(f"🛑 Chyba: {e}")
