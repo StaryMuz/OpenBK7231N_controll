@@ -122,6 +122,9 @@ class MqttRelaisController:
 
     def _on_message(self, client, userdata, msg):
         payload = msg.payload.decode(errors="ignore").strip()
+    if msg.retain:
+        print(f"⚠️ Ignoruji retained zprávu: {payload}")
+        return
         print(f"📥 MQTT {msg.topic}: {payload}")
         if payload in ("1", "0"):
             with self._lock:
@@ -148,9 +151,6 @@ class MqttRelaisController:
 
         print(f"➡️ Publikuji {desired_state} na {self.topic_set}")
         self.client.publish(self.topic_set, desired_state)
-
-        time.sleep(10)
-
         if not self._confirm_event.wait(timeout_seconds):
             print("⏱ Timeout — žádné potvrzení.")
             return False
