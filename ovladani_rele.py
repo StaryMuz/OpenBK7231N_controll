@@ -37,7 +37,7 @@ TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 
 # Pokusy / čekání
 POKUSY = 3
-CEKANI_SEKUND = 60
+CEKANI_SEKUND = 300
 
 # ====== HELPERS ======
 def send_telegram(text: str):
