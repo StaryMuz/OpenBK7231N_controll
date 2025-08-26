@@ -166,10 +166,6 @@ def main():
     try:
         prg_now = datetime.now(ZoneInfo("Europe/Prague"))
         hod = prg_now.hour
-        if hod < CAS_OD or hod > CAS_DO:
-            print(f"⏸ Mimo {CAS_OD}–{CAS_DO} h ({hod}). Konec.")
-            return
-
         df = nacti_ceny()
         pod_limitem, cena = je_cena_pod_limitem(df)
         desired_payload = "1" if pod_limitem else "0"
