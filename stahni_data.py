@@ -19,7 +19,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def ziskej_data_z_ote(max_pokusu=5, cekani=300):
     """Stáhne dnešní SPOT ceny z OTE, opakuje při neúspěchu."""
-    dnes = datetime.now(ZoneInfo("Europe/Prague"))
+    dnes = datetime.now(ZoneInfo("Europe/Prague"))+1
     den = dnes.strftime("%d")
     mesic = dnes.strftime("%m")
     rok = dnes.strftime("%Y")
