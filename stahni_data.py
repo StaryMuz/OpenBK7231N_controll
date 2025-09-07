@@ -57,7 +57,7 @@ def vytvor_graf(df):
     ax.axhline(LIMIT_EUR, color="red", linestyle="--", label=f"Limit {LIMIT_EUR} EUR/MWh")
     ax.set_xlabel("Hodina")
     ax.set_ylabel("Cena (EUR/MWh)")
-    ax.set_title(f"Ceny elektřiny {datetime.now(ZoneInfo('Europe/Prague')).strftime('%d.%m.%Y')}")
+    ax.set_title(f"Ceny elektřiny {zitra.strftime('%d.%m.%Y')}")
     ax.grid(True)
     ax.legend()
 
