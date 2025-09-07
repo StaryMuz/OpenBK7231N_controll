@@ -103,7 +103,7 @@ def odesli_telegram_graf(buf, intervaly):
         print("⚠️ Telegram není nastaven – přeskočeno")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
-    popis = "Cena pod limitem v časech:\n" + "\n".join(intervaly)
+    popis = "Cena zítra pod limitem v časech:\n" + "\n".join(intervaly)
     files = {"photo": ("graf.png", buf, "image/png")}
     data = {"chat_id": TELEGRAM_CHAT_ID, "caption": popis}
     try:
@@ -123,6 +123,6 @@ if __name__ == "__main__":
         graf_buf = vytvor_graf(df)
         odesli_telegram_graf(graf_buf, intervaly)
     else:
-        odesli_telegram_text("ℹ️ Dnes žádné ceny pod limitem.")
+        odesli_telegram_text("ℹ️ Zítra žádné ceny pod limitem.")
 
     print("🏁 Hotovo.")
