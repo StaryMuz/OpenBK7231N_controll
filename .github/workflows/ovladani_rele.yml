@@ -1,12 +1,12 @@
-name: Ovládání WiFi relé (8-19)
+name: Ovládání WiFi relé (8-20)
 
 on:
   workflow_dispatch:
   schedule:
-    # zimní čas 9 - 19 hodin
-    - cron: "50 5-18 * 11,12,1,2,3 *"
-    # letní čas 9 - 19 hodin
-    - cron: "50 4-17 * 4,5,6,7,8,9,10 *"
+    # zimní čas 8 - 20 hodin
+    - cron: "50 6-18 * 11,12,1,2,3 *"
+    # letní čas 8 - 20 hodin
+    - cron: "50 5-17 * 4,5,6,7,8,9,10 *"
 
 jobs:
   run:
