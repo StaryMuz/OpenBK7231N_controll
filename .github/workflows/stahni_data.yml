@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     # zimní čas (listopad–březen), 7 UTC = 21 ČR
-    - cron: '50 17 * 11,12,1,2,3 *'
+    - cron: '50 19 * 11,12,1,2,3 *'
     # letní čas (duben–říjen), 6 UTC = 21 ČR
     - cron: '50 18 * 4-10 *'
 
