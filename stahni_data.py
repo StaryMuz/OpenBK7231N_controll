@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import requests
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import time
 import io
@@ -18,11 +18,12 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 # ====== FUNKCE ======
 
 def ziskej_data_z_ote(max_pokusu=5, cekani=300):
-    """Stáhne dnešní SPOT ceny z OTE, opakuje při neúspěchu."""
+    """Stáhne zítřejší SPOT ceny z OTE, opakuje při neúspěchu."""
     dnes = datetime.now(ZoneInfo("Europe/Prague"))
-    den = dnes.strftime("%d")
-    mesic = dnes.strftime("%m")
-    rok = dnes.strftime("%Y")
+    zitra = dnes + timedelta(days=1)
+    den = zitra.strftime("%d")
+    mesic = zitra.strftime("%m")
+    rok = zitra.strftime("%Y")
     url = f"http://www.ote-cr.cz/kratkodobe-trhy/elektrina/denni-trh/attached/{rok}/month{mesic}/day{den}/DT_{den}_{mesic}_{rok}_CZ.xls"
 
     for pokus in range(1, max_pokusu + 1):
