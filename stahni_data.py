@@ -21,9 +21,9 @@ def ziskej_data_z_ote(max_pokusu=5, cekani=300):
     """Stáhne zítřejší SPOT ceny z OTE, opakuje při neúspěchu."""
     dnes = datetime.now(ZoneInfo("Europe/Prague"))
     zitra = dnes + timedelta(days=1)
-    den = zitra.strftime("%d")
-    mesic = zitra.strftime("%m")
-    rok = zitra.strftime("%Y")
+    den = dnes.strftime("%d")
+    mesic = dnes.strftime("%m")
+    rok = dnes.strftime("%Y")
     url = f"http://www.ote-cr.cz/kratkodobe-trhy/elektrina/denni-trh/attached/{rok}/month{mesic}/day{den}/DT_{den}_{mesic}_{rok}_CZ.xls"
 
     for pokus in range(1, max_pokusu + 1):
