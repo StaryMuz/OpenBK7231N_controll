@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 
 # ====== KONFIGURAČNÍ PROMĚNNÉ ======
 LIMIT_EUR = float(os.getenv("LIMIT_EUR", "13.0"))
+dnes = datetime.now(ZoneInfo("Europe/Prague"))
+zitra = dnes + timedelta(days=1)
 
 # Přístupové údaje z GitHub Secrets / .env
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -19,8 +21,6 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def ziskej_data_z_ote(max_pokusu=5, cekani=300):
     """Stáhne zítřejší SPOT ceny z OTE, opakuje při neúspěchu."""
-    dnes = datetime.now(ZoneInfo("Europe/Prague"))
-    zitra = dnes + timedelta(days=1)
     den = dnes.strftime("%d")
     mesic = dnes.strftime("%m")
     rok = dnes.strftime("%Y")
