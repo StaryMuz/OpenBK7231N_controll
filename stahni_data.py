@@ -24,19 +24,22 @@ def ziskej_data_z_ote(max_pokusu=5, cekani=300):
     den = zitra.strftime("%d")
     mesic = zitra.strftime("%m")
     rok = zitra.strftime("%Y")
-    url = f"http://www.ote-cr.cz/kratkodobe-trhy/elektrina/denni-trh/attached/{rok}/month{mesic}/day{den}/DT_{den}_{mesic}_{rok}_CZ.xls"
+    url = f"https://www.ote-cr.cz/pubweb/attachments/01/{rok}/month{mesic}/day{den}/DT_15MIN_{den}_{mesic}_{rok}_CZ.xlsx"
 
     for pokus in range(1, max_pokusu + 1):
         try:
             print(f"⬇️ Pokus {pokus}: stahuji data z {url}")
-            df = pd.read_excel(url, skiprows=22, usecols="A,B", engine="openpyxl")
-            df.columns = ["Hodina", "Cena (EUR/MWh)"]
+            df = pd.read_excel(url, skiprows=22, usecols="A,C", engine="openpyxl")
+            df.columns = ["Ctvrthodina", "Cena (EUR/MWh)"]
+            df.dropna(inplace=True)
+            df["Ctvrthodina"] = pd.to_numeric(df["Ctvrthodina"], errors="coerce").fillna(0).astype(int)
+            df["Cena (EUR/MWh)"] = pd.to_numeric(
+            df["Cena (EUR/MWh)"].astype(str).str.replace(",", "."), errors="coerce")
+            df = df[df["Ctvrthodina"] >= 1]
             df.dropna(inplace=True)
             df["Hodina"] = pd.to_numeric(df["Hodina"], errors="coerce").fillna(0).astype(int)
             df["Cena (EUR/MWh)"] = pd.to_numeric(
-                df["Cena (EUR/MWh)"].astype(str).str.replace(",", "."),
-                errors="coerce"
-            )
+            df["Cena (EUR/MWh)"].astype(str).str.replace(",", "."), errors="coerce")
             df = df[df["Hodina"] >= 1]
             return df
         except Exception as e:
@@ -53,7 +56,7 @@ def uloz_csv(df, soubor="ceny_ote.csv"):
 def vytvor_graf(df):
     """Vytvoří graf cen a vrátí ho jako bytes."""
     fig, ax = plt.subplots(figsize=(8,4))
-    ax.plot(df["Hodina"], df["Cena (EUR/MWh)"], marker="o")
+    ax.plot(df["Ctvrthodina"], df["Cena (EUR/MWh)"], marker="o")
     ax.axhline(LIMIT_EUR, color="red", linestyle="--", label=f"Limit {LIMIT_EUR} EUR/MWh")
     ax.set_xlabel("Hodina")
     ax.set_ylabel("Cena (EUR/MWh)")
@@ -69,20 +72,27 @@ def vytvor_graf(df):
     return buf
 
 def zjisti_intervaly_pod_limitem(df):
-    """Vrátí seznam intervalů hodin, kdy je cena < LIMIT_EUR."""
-    pod = df[df["Cena (EUR/MWh)"] < LIMIT_EUR]["Hodina"].tolist()
+    """Vrátí seznam intervalů čtvrthodin, kdy je cena < LIMIT_EUR."""
+    pod = df[df["Cena (EUR/MWh)"] < LIMIT_EUR]["Ctvrthodina"].tolist()
     intervaly = []
+
+    def ctvrthodina_na_cas(index):
+        start = (index - 1) * 15
+        hod = start // 60
+        minuty = start % 60
+        return f"{hod:02d}:{minuty:02d}"
+
     if pod:
-        start = pod[0]-1
+        start = pod[0]
         prev = pod[0]
-        for h in pod[1:]:
-            if h == prev + 1:
-                prev = h
+        for i in pod[1:]:
+            if i == prev + 1:
+                prev = i
             else:
-                intervaly.append(f"{start:02d}:00–{prev:02d}:00")
-                start = h
-                prev = h
-        intervaly.append(f"{start:02d}:00–{prev:02d}:00")
+                intervaly.append(f"{ctvrthodina_na_cas(start)}–{ctvrthodina_na_cas(prev+1)}")
+                start = i
+                prev = i
+        intervaly.append(f"{ctvrthodina_na_cas(start)}–{ctvrthodina_na_cas(prev+1)}")
     return intervaly
 
 def odesli_telegram_text(text):
