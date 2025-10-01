@@ -36,11 +36,6 @@ def ziskej_data_z_ote(max_pokusu=5, cekani=300):
             df["Cena (EUR/MWh)"] = pd.to_numeric(
             df["Cena (EUR/MWh)"].astype(str).str.replace(",", "."), errors="coerce")
             df = df[df["Ctvrthodina"] >= 1]
-            df.dropna(inplace=True)
-            df["Hodina"] = pd.to_numeric(df["Hodina"], errors="coerce").fillna(0).astype(int)
-            df["Cena (EUR/MWh)"] = pd.to_numeric(
-            df["Cena (EUR/MWh)"].astype(str).str.replace(",", "."), errors="coerce")
-            df = df[df["Hodina"] >= 1]
             return df
         except Exception as e:
             print(f"⚠️ Chyba: {e}")
