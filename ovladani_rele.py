@@ -5,6 +5,7 @@ Upraveno dle požadavků:
 - relé se vždy zapne/vypne podle aktuální ceny bez porovnání s minulým stavem
 - Telegram oznámení se odešle jen při změně stavu oproti poslední_stav.txt
 - do souboru se uloží nový stav jen při potvrzeném přepnutí
+- vyhodnocení ceny probíhá podle aktuální započaté čtvrthodiny (1–96)
 """
 
 import os
@@ -12,14 +13,11 @@ import time
 import threading
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from datetime import timedelta
 import requests
 import pandas as pd
 import paho.mqtt.client as mqtt
 
 # ====== KONFIGURACE ======
-CAS_OD = 8
-CAS_DO = 19
 LIMIT_EUR = 13.0
 CENY_SOUBOR = "ceny_ote.csv"
 POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"
@@ -57,14 +55,25 @@ def nacti_ceny():
     return pd.read_csv(CENY_SOUBOR)
 
 def je_cena_pod_limitem(df):
-    prg_now1 = datetime.now(ZoneInfo("Europe/Prague"))
-    prg_now = prg_now1 + timedelta(minutes=30)
-    aktualni_hodina = prg_now.hour + 1
-    row = df[df["Hodina"] == aktualni_hodina]
+    """Vrátí (True/False, cena) pro aktuální započatou čtvrthodinu."""
+    prg_now = datetime.now(ZoneInfo("Europe/Prague"))
+
+    # index čtvrthodiny (1–96), započatá perioda
+    ctvrthodina_index = prg_now.hour * 4 + prg_now.minute // 15 + 1
+
+    row = df[df["Ctvrthodina"] == ctvrthodina_index]
     if row.empty:
-        raise Exception(f"Nenalezena cena pro hodinu {aktualni_hodina}.")
+        raise Exception(f"Nenalezena cena pro periodu {ctvrthodina_index}.")
+
     cena = float(row.iloc[0]["Cena (EUR/MWh)"])
-    print(f"🔍 Cena {aktualni_hodina-1}.–{aktualni_hodina}. hod: {cena:.2f} EUR/MWh")
+
+    # převod indexu zpět na časové okno pro log
+    start_min = (ctvrthodina_index - 1) * 15
+    end_min = start_min + 15
+    start_time = f"{start_min // 60:02d}:{start_min % 60:02d}"
+    end_time   = f"{end_min // 60:02d}:{end_min % 60:02d}"
+
+    print(f"🔍 Cena {start_time}–{end_time}: {cena:.2f} EUR/MWh")
     return (cena < LIMIT_EUR, cena)
 
 def nacti_posledni_stav():
@@ -164,8 +173,6 @@ class MqttRelaisController:
 def main():
     ctl = None
     try:
-        prg_now = datetime.now(ZoneInfo("Europe/Prague"))
-        hod = prg_now.hour
         df = nacti_ceny()
         pod_limitem, cena = je_cena_pod_limitem(df)
         desired_payload = "1" if pod_limitem else "0"
@@ -186,14 +193,14 @@ def main():
                 success = True
                 cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
 
-                # 🔄 upraveno – Oznámení jen při změně oproti souboru
+                # Oznámení jen při změně oproti souboru
                 if posledni_stav != desired_payload_int:
                     msg = f"✅ <b>Relé {akce_text}</b> ({cas})."
                     send_telegram(msg)
                 else:
                     print("ℹ️ Stav se nezměnil – Telegram se neposílá.")
 
-                # 🔄 upraveno – uložíme jen po potvrzení
+                # uložíme jen po potvrzení
                 uloz_posledni_stav(desired_payload_int)
                 break
             else:
