@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 ovladani_rele.py
-Upraveno dle požadavků:
 - relé se vždy zapne/vypne podle aktuální ceny bez porovnání s minulým stavem
 - Telegram oznámení se odešle jen při změně stavu oproti poslední_stav.txt
 - do souboru se uloží nový stav jen při potvrzeném přepnutí
