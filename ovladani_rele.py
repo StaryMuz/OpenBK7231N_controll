@@ -55,7 +55,7 @@ def nacti_ceny():
 
 def je_cena_pod_limitem(df):
     """Vrátí (True/False, cena) pro aktuální započatou čtvrthodinu."""
-    prg_now = datetime.now(ZoneInfo("Europe/Prague")) + pd.Timedelta(minutes=9)
+    prg_now = datetime.now(ZoneInfo("Europe/Prague")) + pd.Timedelta(minutes=6)
 
     # index čtvrthodiny (1–96), započatá perioda
     ctvrthodina_index = prg_now.hour * 4 + prg_now.minute // 15 + 1
