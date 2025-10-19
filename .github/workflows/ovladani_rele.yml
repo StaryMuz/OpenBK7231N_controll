@@ -3,16 +3,10 @@ name: Ovládání WiFi relé
 on:
   workflow_dispatch:
   schedule:
-    # v zimním čase 8 - 20 hodin
-    - cron: "10 6-18 * 11,12,1,2,3 *" 
-    - cron: "25 6-18 * 11,12,1,2,3 *" 
-    - cron: "40 6-18 * 11,12,1,2,3 *" 
-    - cron: "55 6-18 * 11,12,1,2,3 *"
-    # v letním čase 6 - 22 hodin
-    - cron: "10 3-19 * 4,5,6,7,8,9,10 *"
-    - cron: "25 3-19 * 4,5,6,7,8,9,10 *"
-    - cron: "40 3-19 * 4,5,6,7,8,9,10 *"
-    - cron: "55 3-19 * 4,5,6,7,8,9,10 *"
+    # zimní čas – 10 minut před celou hodinou, 8–20 hodin českého času
+    - cron: "50 6-18 * 11,12,1,2,3 *" 
+    # letní čas – 10 minut před celou hodinou, 6–22 hodin českého času
+    - cron: "50 3-19 * 4,5,6,7,8,9,10 *"
 
 jobs:
   run:
@@ -37,10 +31,11 @@ jobs:
         with:
           name: posledni-stav
           path: ./
-        continue-on-error: true  # ✅ NEUKONČIT při chybě
+        continue-on-error: true
 
       - name: Run relay control script
         run: python ovladani_rele.py
+        # ⬅️ Script si sám řídí intervaly mezi jednotlivými cykly
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -49,9 +44,6 @@ jobs:
           MQTT_USER:          ${{ secrets.MQTT_USER }}
           MQTT_PASS:          ${{ secrets.MQTT_PASS }}
           MQTT_BASE:          ${{ secrets.MQTT_BASE }}
-
-      - name: Test zápisu do souboru
-        run: echo "Test" > test_soubor.txt && cat test_soubor.txt
 
       - name: Debug – list files
         run: ls -la
@@ -70,4 +62,5 @@ jobs:
           git add posledni_stav.txt
           git commit -m "Aktualizace posledni_stav.txt" || echo "Žádná změna – commit se neprovádí."
           git push || echo "Nic k pushnutí."
+
           
