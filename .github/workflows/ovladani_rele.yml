@@ -3,9 +3,9 @@ name: Ovládání WiFi relé
 on:
   workflow_dispatch:
   schedule:
-    # zimní čas – 10 minut před celou hodinou, 7:50–19:50 hodin českého času
+    # zimní čas – 7:50–19:50 hodin českého času, běh následujících 45 minut
     - cron: "50 5-17 * 11,12,1,2,3 *" 
-    # letní čas – 10 minut před celou hodinou, 5:50–21:50 hodin českého času
+    # letní čas – 5:50–21:50 hodin českého času, běh následujících 45 minut
     - cron: "50 2-18 * 4,5,6,7,8,9,10 *"
 
 jobs:
