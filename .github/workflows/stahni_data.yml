@@ -3,9 +3,9 @@ name: Stahni OTE data a pošli graf / text
 on:
   workflow_dispatch:
   schedule:
-    # zimní čas (listopad–březen), 7 UTC = 22 ČR
+    # zimní čas (listopad–březen), 22:00 ČR
     - cron: '50 20 * 11,12,1,2,3 *'
-    # letní čas (duben–říjen), 6 UTC = 22 ČR
+    # letní čas (duben–říjen), 22:00 ČR
     - cron: '50 19 * 4-10 *'
 
 jobs:
