@@ -4,9 +4,16 @@ on:
   workflow_dispatch:
   schedule:
     # zimní čas (listopad–březen), 22:00 ČR
-    - cron: '50 20 * 11,12,1,2,3 *'
+    - cron: '50 20 * 11,12,1,2 *'
+    - cron: "50 20 * 25-31 10 *"
+    - cron: "50 20 * 1-24 3 *"
+    
     # letní čas (duben–říjen), 22:00 ČR
-    - cron: '50 19 * 4-10 *'
+    - cron: '50 19 * 4-9 *'
+    - cron: "50 19 * 1-24 10 *"
+    - cron: "50 19 * 25-31 3 *"
+
+
 
 jobs:
   run:
