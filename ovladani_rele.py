@@ -95,7 +95,7 @@ class MqttRelaisController:
         self._last_payload = None
         self._confirm_event = threading.Event()
         self._connected_event = threading.Event()
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         self.client.username_pw_set(self.username, self.password)
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
@@ -131,8 +131,8 @@ class MqttRelaisController:
             raise Exception("Nepodařilo se připojit k MQTT brokeru.")
 
     def disconnect(self):
-        self.client.loop_stop()
         self.client.disconnect()
+        self.client.loop_stop()
 
     def publish_and_wait_confirmation(self, desired_state: str, timeout_seconds: int):
         if desired_state not in ("1", "0"):
@@ -174,8 +174,7 @@ def main_cycle():
                 success = True
                 cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
                 if posledni_stav != desired_payload_int:
-                    msg = f"✅ <b>Relé {akce_text}</b> ({cas})."
-                    send_telegram(msg)
+                    send_telegram(f"✅ <b>Relé {akce_text}</b> ({cas}).")
                 else:
                     print("ℹ️ Stav se nezměnil – Telegram se neposílá.")
                 uloz_posledni_stav(desired_payload_int)
@@ -214,13 +213,11 @@ def nejblizsi_ctvrthodina(now=None):
     return next_time
 
 if __name__ == "__main__":
-    # Čekání do celé hodiny
     now = datetime.now(ZoneInfo("Europe/Prague"))
     next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     print(f"🕒 Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
     cekej_do_casoveho_bodu(next_hour)
 
-    # Čtyři cykly po čtvrthodinách s dynamickým čekáním
     for i in range(4):
         print(f"🚀 Spouštím cyklus #{i+1} v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
         main_cycle()
