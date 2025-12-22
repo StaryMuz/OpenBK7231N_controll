@@ -95,7 +95,7 @@ class MqttRelaisController:
         self._last_payload = None
         self._confirm_event = threading.Event()
         self._connected_event = threading.Event()
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
         self.client.username_pw_set(self.username, self.password)
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
