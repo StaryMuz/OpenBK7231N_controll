@@ -107,7 +107,7 @@ class MqttRelaisController:
         else:
             print(f"⚠️ MQTT connect failed: {reason_code}")
 
-    def _on_disconnect(self, client, userdata, reason_code, properties):
+    def _on_disconnect(self, client, userdata, reason_code, properties, packet_from_broker):
         print("ℹ️ MQTT odpojeno")
         self._connected_event.clear()
 
