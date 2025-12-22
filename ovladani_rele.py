@@ -1,4 +1,3 @@
-(ovladani_rele.py)
 # -*- coding: utf-8 -*-
 """
 ovladani_rele.py
