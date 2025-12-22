@@ -125,10 +125,12 @@ class MqttRelaisController:
                 self._confirm_event.set()
 
     def connect(self, timeout=10):
+        self._confirm_event.clear()
+        self._last_payload = None
         self.client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
         self.client.loop_start()
-        if not self._connected_event.wait(timeout):
-            raise Exception("Nepodařilo se připojit k MQTT brokeru")
+    if not self._connected_event.wait(timeout):
+        raise Exception("Nepodařilo se připojit k MQTT brokeru")
 
     def disconnect(self):
         self.client.loop_stop()
