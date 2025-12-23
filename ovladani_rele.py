@@ -30,7 +30,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 
 POKUSY = 3
-CEKANI_SEKUND = 300
+CEKANI_SEKUND = 120
 
 # ====== HELPERS ======
 def send_telegram(text: str):
