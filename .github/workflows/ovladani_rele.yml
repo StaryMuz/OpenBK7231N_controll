@@ -1,5 +1,9 @@
 name: Ovládání WiFi relé
 
+concurrency:
+  group: ovladani-wifi-rele
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   schedule:
