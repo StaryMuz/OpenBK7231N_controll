@@ -219,11 +219,17 @@ def nejblizsi_ctvrthodina(now=None):
         return (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     return now.replace(minute=minute, second=0, microsecond=0)
 
+# ====== START ======
 if __name__ == "__main__":
     now = datetime.now(ZoneInfo("Europe/Prague"))
-    next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
-    cekej_do_casoveho_bodu(next_hour)
+
+    # Pokud už běží první čtvrthodina, nečekej – spusť hned
+    if now.minute >= 15:
+        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
+        cekej_do_casoveho_bodu(next_hour)
+    else:
+        print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
 
     for i in range(4):
         print(f"Spouštím cyklus #{i+1} v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
