@@ -35,14 +35,14 @@ CEKANI_SEKUND = 300
 # ====== HELPERS ======
 def send_telegram(text: str):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("⚠️ Telegram není nastaven — přeskočeno.")
+        print("?? Telegram není nastaven — přeskočeno.")
         return
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
         data = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}
         requests.post(url, data=data, timeout=15)
     except Exception as e:
-        print(f"⚠️ Telegram error: {e}")
+        print(f"?? Telegram error: {e}")
 
 def nacti_ceny():
     if not os.path.exists(CENY_SOUBOR):
@@ -60,7 +60,7 @@ def je_cena_pod_limitem(df):
     end_min = start_min + 15
     start_time = f"{start_min // 60:02d}:{start_min % 60:02d}"
     end_time   = f"{end_min // 60:02d}:{end_min % 60:02d}"
-    print(f"🔍 Cena {start_time}–{end_time}: {cena:.2f} EUR/MWh")
+    print(f"?? Cena {start_time}–{end_time}: {cena:.2f} EUR/MWh")
     return (cena < LIMIT_EUR, cena)
 
 def nacti_posledni_stav():
@@ -75,13 +75,13 @@ def nacti_posledni_stav():
 
 def uloz_posledni_stav(stav: int):
     try:
-        print(f"💾 Ukládám stav {stav} do {POSLEDNI_STAV_SOUBOR}")
+        print(f"?? Ukládám stav {stav} do {POSLEDNI_STAV_SOUBOR}")
         with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
             f.write(str(stav))
     except Exception as e:
-        print(f"⚠️ Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
+        print(f"?? Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
 
-# ====== MQTT třída ======
+# ====== MQTT třída (API v2) ======
 class MqttRelaisController:
     def __init__(self, broker, port, username, password, base_topic):
         self.broker = broker
@@ -91,34 +91,37 @@ class MqttRelaisController:
         self.base = base_topic.rstrip("/")
         self.topic_set = f"{self.base}/1/set"
         self.topic_get = f"{self.base}/1/get"
+
         self._lock = threading.Lock()
         self._last_payload = None
         self._confirm_event = threading.Event()
         self._connected_event = threading.Event()
-        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
-        self.client.username_pw_set(self.username, self.password)
-        self.client.on_connect = self._on_connect
-        self.client.on_message = self._on_message
-        self.client.on_disconnect = self._on_disconnect
 
-    def _on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
-            print(f"✅ MQTT připojeno {self.broker}:{self.port}")
+        self.client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+        self.client.username_pw_set(self.username, self.password)
+
+        self.client.on_connect = self._on_connect
+        self.client.on_disconnect = self._on_disconnect
+        self.client.on_message = self._on_message
+
+    def _on_connect(self, client, userdata, flags, reason_code, properties):
+        if reason_code == 0:
+            print(f"? MQTT připojeno {self.broker}:{self.port}")
             client.subscribe(self.topic_get)
             self._connected_event.set()
         else:
-            print(f"⚠️ MQTT chyba rc={rc}")
+            print(f"?? MQTT chyba reason_code={reason_code}")
 
-    def _on_disconnect(self, client, userdata, rc):
-        print("ℹ️ MQTT odpojeno")
+    def _on_disconnect(self, client, userdata, reason_code, properties):
+        print("?? MQTT odpojeno")
         self._connected_event.clear()
 
     def _on_message(self, client, userdata, msg):
         payload = msg.payload.decode(errors="ignore").strip()
         if msg.retain:
-            print(f"⚠️ Ignoruji retained zprávu: {payload}")
+            print(f"?? Ignoruji retained zprávu: {payload}")
             return
-        print(f"📥 MQTT {msg.topic}: {payload}")
+        print(f"?? MQTT {msg.topic}: {payload}")
         if payload in ("1", "0"):
             with self._lock:
                 self._last_payload = payload
@@ -140,19 +143,21 @@ class MqttRelaisController:
         self._confirm_event.clear()
         with self._lock:
             self._last_payload = None
-        print(f"➡️ Publikuji {desired_state} na {self.topic_set}")
+
+        print(f"?? Publikuji {desired_state} na {self.topic_set}")
         self.client.publish(self.topic_set, desired_state)
+
         if not self._confirm_event.wait(timeout_seconds):
-            print("⏱ Timeout — žádné potvrzení.")
+            print("? Timeout — žádné potvrzení.")
             return False
+
         with self._lock:
             confirmed = (self._last_payload == desired_state)
-            print(f"🔎 Potvrzeno: {self._last_payload} (oček.: {desired_state})")
+            print(f"?? Potvrzeno: {self._last_payload} (oček.: {desired_state})")
             return confirmed
 
 # ====== HLAVNÍ LOGIKA ======
 def main_cycle():
-    """Provede jeden kompletní cyklus vyhodnocení a přepnutí relé."""
     ctl = None
     try:
         df = nacti_ceny()
@@ -162,9 +167,11 @@ def main_cycle():
         akce_text = "zapnuto" if desired_payload == "1" else "vypnuto"
 
         posledni_stav = nacti_posledni_stav()
-        print(f"ℹ️ Poslední známý stav: {posledni_stav}")
+        print(f"?? Poslední známý stav: {posledni_stav}")
 
-        ctl = MqttRelaisController(MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE)
+        ctl = MqttRelaisController(
+            MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE
+        )
         ctl.connect(timeout=15)
 
         success = False
@@ -174,26 +181,27 @@ def main_cycle():
                 success = True
                 cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
                 if posledni_stav != desired_payload_int:
-                    msg = f"✅ <b>Relé {akce_text}</b> ({cas})."
-                    send_telegram(msg)
+                    send_telegram(f"? <b>Relé {akce_text}</b> ({cas}).")
                 else:
-                    print("ℹ️ Stav se nezměnil – Telegram se neposílá.")
+                    print("?? Stav se nezměnil – Telegram se neposílá.")
                 uloz_posledni_stav(desired_payload_int)
                 break
             else:
-                print(f"❗ Nepotvrzeno, pokus {pokus}")
+                print(f"? Nepotvrzeno, pokus {pokus}")
+
         if not success:
             cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-            send_telegram(f"❗ <b>Relé nereaguje</b> ({cas}).")
+            send_telegram(f"? <b>Relé nereaguje</b> ({cas}).")
+
     except Exception as e:
-        print(f"🛑 Chyba: {e}")
-        send_telegram(f"🛑 Chyba v ovladani_rele.py: {e}")
+        print(f"?? Chyba: {e}")
+        send_telegram(f"?? Chyba v ovladani_rele.py: {e}")
     finally:
-        try:
-            if ctl:
+        if ctl:
+            try:
                 ctl.disconnect()
-        except Exception:
-            pass
+            except Exception:
+                pass
 
 def cekej_do_casoveho_bodu(target_dt):
     while True:
@@ -208,25 +216,21 @@ def nejblizsi_ctvrthodina(now=None):
         now = datetime.now(ZoneInfo("Europe/Prague"))
     minute = ((now.minute // 15) + 1) * 15
     if minute >= 60:
-        next_time = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    else:
-        next_time = now.replace(minute=minute, second=0, microsecond=0)
-    return next_time
+        return (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    return now.replace(minute=minute, second=0, microsecond=0)
 
 if __name__ == "__main__":
-    # Čekání do celé hodiny
     now = datetime.now(ZoneInfo("Europe/Prague"))
     next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    print(f"🕒 Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
+    print(f"?? Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
     cekej_do_casoveho_bodu(next_hour)
 
-    # Čtyři cykly po čtvrthodinách s dynamickým čekáním
     for i in range(4):
-        print(f"🚀 Spouštím cyklus #{i+1} v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+        print(f"?? Spouštím cyklus #{i+1} v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
         main_cycle()
         if i < 3:
             next_quarter = nejblizsi_ctvrthodina()
-            print(f"⏳ Čekám do další čtvrthodiny ({next_quarter.strftime('%H:%M:%S')})...")
+            print(f"? Čekám do další čtvrthodiny ({next_quarter.strftime('%H:%M:%S')})...")
             cekej_do_casoveho_bodu(next_quarter)
 
-    print(f"🏁 Ukončeno v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+    print(f"?? Ukončeno v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
