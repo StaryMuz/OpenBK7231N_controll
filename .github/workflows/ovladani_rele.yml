@@ -30,13 +30,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests pandas openpyxl paho-mqtt
 
-      - name: Download previous relay state
-        uses: actions/download-artifact@v4
-        with:
-          name: posledni-stav
-          path: ./
-        continue-on-error: true
-
       - name: Run relay control script
         run: python ovladani_rele.py
         # ⬅️ Script si sám řídí intervaly mezi jednotlivými cykly
@@ -52,13 +45,6 @@ jobs:
       - name: Debug – list files
         run: ls -la
 
-      - name: Upload current relay state
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: posledni-stav
-          path: ./posledni_stav.txt
-
       - name: Commit and push last state
         run: |
           git config --global user.name "github-actions"
@@ -66,5 +52,3 @@ jobs:
           git add posledni_stav.txt
           git commit -m "Aktualizace posledni_stav.txt" || echo "Žádná změna – commit se neprovádí."
           git push || echo "Nic k pushnutí."
-
-          
