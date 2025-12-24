@@ -224,7 +224,7 @@ if __name__ == "__main__":
     now = datetime.now(ZoneInfo("Europe/Prague"))
 
     # Pokud už běží první čtvrthodina, nečekej – spusť hned
-    if now.minute >= 15:
+    if now.minute >= 46:
         next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
         cekej_do_casoveho_bodu(next_hour)
