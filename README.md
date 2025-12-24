@@ -1,3 +1,4 @@
+Funkční projekt v online provozu.
 Projekt je určen pro práci v České republice a rozlišuje letní a zimní čas.
 Ve večerních hodinách si z OTE stáhne data o cenách elektřiny pro následující den.
 Při rozednívání začne kontrolovat cenu elektřiny tak, že každou čtvrthodinu porovná cenu s nastaveným limitem a pokud je cena nižší než limit, sepne Wifi relé v domácnosti.
