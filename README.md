@@ -5,6 +5,7 @@ Wifi relé spíná stykač, který připojí tepelnou zátěž k odběru. Styka�
 Informaci o záporných cenách a informaci o přepnutí stavu relé zasílá projekt na můj Telegram pro přehled o funkčnosti.
 Zajistí se tak nulová dodávka z FVE do distribuční sítě v době, kdy by cena za dodávku do sítě znamenala finanční ztrátu.
 Je využit broker pro spojení relé s tímto projektem.
+Poslední aktualizace projektu 24.12.2025.
 
 Tagy:
 fotovoltaická, spot, denní trhy, smart, chytrá
