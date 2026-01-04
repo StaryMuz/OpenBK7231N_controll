@@ -140,12 +140,15 @@ class MqttRelaisController:
     def publish_and_wait_confirmation(self, desired_state: str, timeout_seconds: int):
         if desired_state not in ("1", "0"):
             raise ValueError("Stav musí být '1' nebo '0'.")
-        self._confirm_event.clear()
+
         with self._lock:
             self._last_payload = None
 
         print(f"Publikuji {desired_state} na {self.topic_set}")
         self.client.publish(self.topic_set, desired_state)
+
+        # === KLÍČOVÁ ÚPRAVA: clear AŽ PO publish ===
+        self._confirm_event.clear()
 
         if not self._confirm_event.wait(timeout_seconds):
             print("Timeout — žádné potvrzení.")
