@@ -112,16 +112,19 @@ class MqttRelaisController:
         else:
             print(f"MQTT chyba reason_code={reason_code}")
 
-    def _on_disconnect(self, client, userdata, reason_code, properties):
+    # FIX 1: správná signatura API v2
+    def _on_disconnect(self, client, userdata, reason_code, properties, reason_string):
         print("MQTT odpojeno")
         self._connected_event.clear()
 
     def _on_message(self, client, userdata, msg):
-        payload = msg.payload.decode(errors="ignore").strip()
         if msg.retain:
-            print(f"Ignoruji retained zprávu: {payload}")
+            print(f"Ignoruji retained zprávu: {msg.payload.decode(errors='ignore')}")
             return
+
+        payload = msg.payload.decode(errors="ignore").strip()
         print(f"MQTT {msg.topic}: {payload}")
+
         if payload in ("1", "0"):
             with self._lock:
                 self._last_payload = payload
@@ -144,11 +147,10 @@ class MqttRelaisController:
         with self._lock:
             self._last_payload = None
 
+        # FIX 2: clear MUSÍ být před publish
+        self._confirm_event.clear()
         print(f"Publikuji {desired_state} na {self.topic_set}")
         self.client.publish(self.topic_set, desired_state)
-
-        # === KLÍČOVÁ ÚPRAVA: clear AŽ PO publish ===
-        self._confirm_event.clear()
 
         if not self._confirm_event.wait(timeout_seconds):
             print("Timeout — žádné potvrzení.")
@@ -226,7 +228,6 @@ def nejblizsi_ctvrthodina(now=None):
 if __name__ == "__main__":
     now = datetime.now(ZoneInfo("Europe/Prague"))
 
-    # Pokud už běží první čtvrthodina, nečekej – spusť hned
     if now.minute >= 46:
         next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
