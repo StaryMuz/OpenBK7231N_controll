@@ -3,7 +3,7 @@
 ovladani_rele.py
 - relé se vždy zapne/vypne podle aktuální ceny
 - Telegram oznámení se odešle jen při změně stavu oproti poslední_stav.txt
-- logika spuštění cyklů po čtvrthodinách s čekáním do nejbližší čtvrthodiny
+- běhy přesně v X:45, X+1:00, X+1:15, X+1:30
 """
 
 import os
@@ -56,11 +56,6 @@ def je_cena_pod_limitem(df):
     if row.empty:
         raise Exception(f"Nenalezena cena pro periodu {ctvrthodina_index}.")
     cena = float(row.iloc[0]["Cena (EUR/MWh)"])
-    start_min = (ctvrthodina_index - 1) * 15
-    end_min = start_min + 15
-    start_time = f"{start_min // 60:02d}:{start_min % 60:02d}"
-    end_time   = f"{end_min // 60:02d}:{end_min % 60:02d}"
-    print(f"Cena {start_time}–{end_time}: {cena:.2f} EUR/MWh")
     return (cena < LIMIT_EUR, cena)
 
 def nacti_posledni_stav():
@@ -74,20 +69,12 @@ def nacti_posledni_stav():
         return None
 
 def uloz_posledni_stav(stav: int):
-    try:
-        print(f"Ukládám stav {stav} do {POSLEDNI_STAV_SOUBOR}")
-        with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
-            f.write(str(stav))
-    except Exception as e:
-        print(f"Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
+    with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
+        f.write(str(stav))
 
-# ====== MQTT třída (API v2) ======
+# ====== MQTT ======
 class MqttRelaisController:
     def __init__(self, broker, port, username, password, base_topic):
-        self.broker = broker
-        self.port = port
-        self.username = username
-        self.password = password
         self.base = base_topic.rstrip("/")
         self.topic_set = f"{self.base}/1/set"
         self.topic_get = f"{self.base}/1/get"
@@ -98,34 +85,25 @@ class MqttRelaisController:
         self._connected_event = threading.Event()
 
         self.client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
-        self.client.username_pw_set(self.username, self.password)
-
+        self.client.username_pw_set(username, password)
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
         self.client.on_message = self._on_message
 
+        self.broker = broker
+        self.port = port
+
     def _on_connect(self, client, userdata, flags, reason_code, properties):
         if reason_code == 0:
-            print(f"MQTT připojeno {self.broker}:{self.port}")
             client.subscribe(self.topic_get)
             self._connected_event.set()
-        else:
-            print(f"MQTT chyba reason_code={reason_code}")
 
-    # FIX 1: správná signatura API v2
     def _on_disconnect(self, client, userdata, reason_code, properties, reason_string):
-        print("MQTT odpojeno")
         self._connected_event.clear()
 
     def _on_message(self, client, userdata, msg):
-        if msg.retain:
-            print(f"Ignoruji retained zprávu: {msg.payload.decode(errors='ignore')}")
-            return
-
         payload = msg.payload.decode(errors="ignore").strip()
-        print(f"MQTT {msg.topic}: {payload}")
-
-        if payload in ("1", "0"):
+        if payload in ("0", "1"):
             with self._lock:
                 self._last_payload = payload
                 self._confirm_event.set()
@@ -134,113 +112,67 @@ class MqttRelaisController:
         self.client.connect(self.broker, self.port, keepalive=60)
         self.client.loop_start()
         if not self._connected_event.wait(timeout):
-            raise Exception("Nepodařilo se připojit k MQTT brokeru.")
+            raise Exception("MQTT connect timeout")
 
     def disconnect(self):
         self.client.loop_stop()
         self.client.disconnect()
 
     def publish_and_wait_confirmation(self, desired_state: str, timeout_seconds: int):
-        if desired_state not in ("1", "0"):
-            raise ValueError("Stav musí být '1' nebo '0'.")
-
         with self._lock:
             self._last_payload = None
-
-        # FIX 2: clear MUSÍ být před publish
         self._confirm_event.clear()
-        print(f"Publikuji {desired_state} na {self.topic_set}")
         self.client.publish(self.topic_set, desired_state)
-
         if not self._confirm_event.wait(timeout_seconds):
-            print("Timeout — žádné potvrzení.")
             return False
+        return self._last_payload == desired_state
 
-        with self._lock:
-            confirmed = (self._last_payload == desired_state)
-            print(f"Potvrzeno: {self._last_payload} (oček.: {desired_state})")
-            return confirmed
-
-# ====== HLAVNÍ LOGIKA ======
+# ====== LOGIKA ======
 def main_cycle():
-    ctl = None
-    try:
-        df = nacti_ceny()
-        pod_limitem, cena = je_cena_pod_limitem(df)
-        desired_payload = "1" if pod_limitem else "0"
-        desired_payload_int = int(desired_payload)
-        akce_text = "zapnuto" if desired_payload == "1" else "vypnuto"
+    df = nacti_ceny()
+    pod_limitem, _ = je_cena_pod_limitem(df)
+    desired = "1" if pod_limitem else "0"
 
-        posledni_stav = nacti_posledni_stav()
-        print(f"Poslední známý stav: {posledni_stav}")
+    posledni = nacti_posledni_stav()
+    ctl = MqttRelaisController(
+        MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE
+    )
+    ctl.connect()
 
-        ctl = MqttRelaisController(
-            MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE
-        )
-        ctl.connect(timeout=15)
+    for _ in range(POKUSY):
+        if ctl.publish_and_wait_confirmation(desired, CEKANI_SEKUND):
+            if posledni != int(desired):
+                send_telegram(f"<b>Relé {'zapnuto' if desired=='1' else 'vypnuto'}</b>")
+            uloz_posledni_stav(int(desired))
+            break
 
-        success = False
-        for pokus in range(1, POKUSY + 1):
-            print(f"--- Pokus {pokus}/{POKUSY} ---")
-            if ctl.publish_and_wait_confirmation(desired_payload, CEKANI_SEKUND):
-                success = True
-                cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-                if posledni_stav != desired_payload_int:
-                    send_telegram(f"<b>Relé {akce_text}</b> ({cas}).")
-                else:
-                    print("Stav se nezměnil – Telegram se neposílá.")
-                uloz_posledni_stav(desired_payload_int)
-                break
-            else:
-                print(f"Nepotvrzeno, pokus {pokus}")
+    ctl.disconnect()
 
-        if not success:
-            cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-            send_telegram(f"<b>Relé nereaguje</b> ({cas}).")
-
-    except Exception as e:
-        print(f"Chyba: {e}")
-        send_telegram(f"Chyba v ovladani_rele.py: {e}")
-    finally:
-        if ctl:
-            try:
-                ctl.disconnect()
-            except Exception:
-                pass
-
-def cekej_do_casoveho_bodu(target_dt):
+def cekej_do(target):
     while True:
         now = datetime.now(ZoneInfo("Europe/Prague"))
-        delta = (target_dt - now).total_seconds()
-        if delta <= 0:
-            break
-        time.sleep(min(delta, 30))
+        if now >= target:
+            return
+        time.sleep(min(30, (target - now).total_seconds()))
 
-def nejblizsi_ctvrthodina(now=None):
-    if now is None:
-        now = datetime.now(ZoneInfo("Europe/Prague"))
-    minute = ((now.minute // 15) + 1) * 15
-    if minute >= 60:
-        return (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    return now.replace(minute=minute, second=0, microsecond=0)
+def nejblizsi_45(now):
+    if now.minute < 45:
+        return now.replace(minute=45, second=0, microsecond=0)
+    return (now + timedelta(hours=1)).replace(minute=45, second=0, microsecond=0)
 
 # ====== START ======
 if __name__ == "__main__":
     now = datetime.now(ZoneInfo("Europe/Prague"))
+    start = nejblizsi_45(now)
 
-    if now.minute >= 46:
-        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-        print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
-        cekej_do_casoveho_bodu(next_hour)
-    else:
-        print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
+    print(f"Čekám na první běh v {start.strftime('%H:%M:%S')}")
+    cekej_do(start)
 
     for i in range(4):
-        print(f"Spouštím cyklus #{i+1} v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+        print(f"Cyklus {i+1}")
         main_cycle()
         if i < 3:
-            next_quarter = nejblizsi_ctvrthodina()
-            print(f"Čekám do další čtvrthodiny ({next_quarter.strftime('%H:%M:%S')})...")
-            cekej_do_casoveho_bodu(next_quarter)
+            start += timedelta(minutes=15)
+            cekej_do(start)
 
-    print(f"Ukončeno v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+    print("Hotovo.")
