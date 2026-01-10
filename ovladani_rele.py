@@ -81,7 +81,7 @@ def uloz_posledni_stav(stav: int):
     except Exception as e:
         print(f"Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
 
-# ====== MQTT třída ======
+# ====== MQTT třída (API v2) ======
 class MqttRelaisController:
     def __init__(self, broker, port, username, password, base_topic):
         self.broker = broker
@@ -112,6 +112,7 @@ class MqttRelaisController:
         else:
             print(f"MQTT chyba reason_code={reason_code}")
 
+    # FIX 1: správná signatura API v2
     def _on_disconnect(self, client, userdata, reason_code, properties, reason_string):
         print("MQTT odpojeno")
         self._connected_event.clear()
@@ -140,9 +141,13 @@ class MqttRelaisController:
         self.client.disconnect()
 
     def publish_and_wait_confirmation(self, desired_state: str, timeout_seconds: int):
+        if desired_state not in ("1", "0"):
+            raise ValueError("Stav musí být '1' nebo '0'.")
+
         with self._lock:
             self._last_payload = None
 
+        # FIX 2: clear MUSÍ být před publish
         self._confirm_event.clear()
         print(f"Publikuji {desired_state} na {self.topic_set}")
         self.client.publish(self.topic_set, desired_state)
@@ -223,17 +228,12 @@ def nejblizsi_ctvrthodina(now=None):
 if __name__ == "__main__":
     now = datetime.now(ZoneInfo("Europe/Prague"))
 
-    # cílový start: nejbližší X:45
-    if now.minute < 45:
-        start = now.replace(minute=45, second=0, microsecond=0)
+    if now.minute >= 46:
+        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
+        cekej_do_casoveho_bodu(next_hour)
     else:
-        start = (now + timedelta(hours=1)).replace(minute=45, second=0, microsecond=0)
-
-    if now < start:
-        print(f"Čekám do {start.strftime('%H:%M:%S')}...")
-        cekej_do_casoveho_bodu(start)
-    else:
-        print("Jsme po cílovém čase – první cyklus se spustí ihned.")
+        print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
 
     for i in range(4):
         print(f"Spouštím cyklus #{i+1} v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
