@@ -7,12 +7,11 @@ concurrency:
 on:
   workflow_dispatch:
   schedule:
-    # zimní čas – 6:45–19:45 českého času, běh následujících 45 minut
+    # zimní čas – 6:50–19:50 českého času, běh následujících 45 minut
     - cron: "53 4-17 * 11,12,1,2 *"
     - cron: "53 4-17 25-31 10 *"
     - cron: "53 4-17 1-24 3 *"
-
-    # letní čas – 4:45–21:45 českého času, běh následujících 45 minut
+    # letní čas – 4:50–21:50 českého času, běh následujících 45 minut
     - cron: "53 1-18 * 4,5,6,7,8,9 *"
     - cron: "53 1-18 1-24 10 *"
     - cron: "53 1-18 25-31 3 *"
@@ -37,6 +36,7 @@ jobs:
 
       - name: Run relay control script
         run: python ovladani_rele.py
+        # ⬅️ Script si sám řídí intervaly mezi jednotlivými cykly
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
