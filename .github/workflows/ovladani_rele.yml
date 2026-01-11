@@ -7,7 +7,7 @@ concurrency:
 on:
   workflow_dispatch:
   schedule:
-    # zimní čas – 6:50–19:50 českého času, běh následujících 45 minut
+    # zimní čas – 5:50–18:50 českého času, běh následujících 45 minut
     - cron: "53 4-17 * 11,12,1,2 *"
     - cron: "53 4-17 25-31 10 *"
     - cron: "53 4-17 1-24 3 *"
