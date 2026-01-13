@@ -2,7 +2,7 @@ import os
 import time
 import paho.mqtt.client as mqtt
 
-MQTT_BROKER = os.environ["MQTT_HOST"]
+MQTT_BROKER = os.environ["MQTT_BROKER"]
 MQTT_USER   = os.environ["MQTT_USER"]
 MQTT_PASS   = os.environ["MQTT_PASS"]
 
