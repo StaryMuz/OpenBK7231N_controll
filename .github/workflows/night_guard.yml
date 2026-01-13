@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
   schedule:
     # zimní čas – 6:50–18:50 českého času, běh následujících 45 minut
-    - cron: "10 19-5 * 11,12,1,2 *"
-    - cron: "10 19-5 25-31 10 *"
-    - cron: "10 19-5 1-24 3 *"
+    - cron: "10 19-23,0-5 * 11,12,1,2 *"
+    - cron: "10 19-23,0-5 25-31 10 *"
+    - cron: "10 19-23,0-5 1-24 3 *"
     # letní čas – 4:50–21:50 českého času, běh následujících 45 minut
-    - cron: "10 20-1 * 4,5,6,7,8,9 *"
-    - cron: "10 20-1 1-24 10 *"
-    - cron: "10 20-1 25-31 3 *"
+    - cron: "10 20-23,0-1 * 4,5,6,7,8,9 *"
+    - cron: "10 20-23,0-1 1-24 10 *"
+    - cron: "10 20-23,0-1 25-31 3 *"
   
 jobs:
   guard:
