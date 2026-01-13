@@ -13,12 +13,18 @@ state = None  # "0", "1" nebo None = neznámý
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code == 0:
+        # přihlásíme se k TOPIC_GET
         client.subscribe(TOPIC_GET)
+        # po přihlášení rovnou požádáme relé o aktuální stav
+        client.publish(TOPIC_GET, "", qos=1, retain=False)
     else:
         print("MQTT connect error:", reason_code)
 
 def on_message(client, userdata, msg):
     global state
+    # ignorovat retained zprávy
+    if msg.retain:
+        return
     payload = msg.payload.decode(errors="ignore").strip()
     if payload in ("0", "1"):
         state = payload
@@ -33,22 +39,31 @@ client.on_message = on_message
 client.connect(MQTT_BROKER, 1883, 30)
 client.loop_start()
 
-# krátké čekání na odpověď GET
-for _ in range(20):
-    if state is not None:
-        break
-    time.sleep(0.1)
+# ------------------------------
+# Čekání na odpověď od zařízení s timeoutem
+# ------------------------------
+max_wait = 70   # max 70 sekund
+interval = 0.5  # polling interval
+waited = 0
+
+while state is None and waited < max_wait:
+    time.sleep(interval)
+    waited += interval
+
+client.loop_stop()
+client.disconnect()
 
 # ====== VYHODNOCENÍ STAVU ======
 if state == "1":
     print("Relé je ZAPNUTO → vypínám")
+    client.connect(MQTT_BROKER, 1883, 30)
+    client.loop_start()
     client.publish(TOPIC_SET, "0", qos=1, retain=False)
+    client.loop_stop()
+    client.disconnect()
 
 elif state == "0":
     print("Relé je vypnuto – žádná akce")
 
 else:
-    print("Stav relé NEZNÁMÝ – žádná akce")
-
-client.loop_stop()
-client.disconnect()
+    print(f"Stav relé NEZNÁMÝ – žádná odpověď po {max_wait}s")
