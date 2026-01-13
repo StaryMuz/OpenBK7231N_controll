@@ -19,9 +19,6 @@ def on_connect(client, userdata, flags, reason_code, properties):
 
 def on_message(client, userdata, msg):
     global state
-    # ignorovat retained zprávy
-    if msg.retain:
-        return
     payload = msg.payload.decode(errors="ignore").strip()
     if payload in ("0", "1"):
         state = payload
@@ -36,7 +33,7 @@ client.on_message = on_message
 client.connect(MQTT_BROKER, 1883, 30)
 client.loop_start()
 
-# krátké čekání na odpověď GET (nové zprávy)
+# krátké čekání na odpověď GET
 for _ in range(20):
     if state is not None:
         break
