@@ -1,6 +1,7 @@
 name: Night Relay Guard
 
 on:
+  workflow_dispatch:
   schedule:
     # zimní čas – 6:50–18:50 českého času, běh následujících 45 minut
     - cron: "*/10 19-5 * 11,12,1,2 *"
@@ -10,8 +11,7 @@ on:
     - cron: "*/10 20-1 * 4,5,6,7,8,9 *"
     - cron: "*/10 20-1 1-24 10 *"
     - cron: "*/10 20-1 25-31 3 *"
-  workflow_dispatch:
-
+  
 jobs:
   guard:
     runs-on: ubuntu-latest
