@@ -1,8 +1,8 @@
 name: Night Relay Guard
 
-#on:
- # workflow_dispatch:
-  #schedule:
+on:
+  workflow_dispatch:
+  schedule:
     # zimní čas – 6:50–18:50 českého času, běh následujících 45 minut
     - cron: "*/10 19-5 * 11,12,1,2 *"
     - cron: "*/10 19-5 25-31 10 *"
