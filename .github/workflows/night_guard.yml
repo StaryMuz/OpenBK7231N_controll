@@ -29,7 +29,7 @@ jobs:
 
       - name: Run night guard
         env:
-          MQTT_HOST: ${{ secrets.MQTT_HOST }}
+          MQTT_BROKER: ${{ secrets.MQTT_BROKER }}
           MQTT_USER: ${{ secrets.MQTT_USER }}
           MQTT_PASS: ${{ secrets.MQTT_PASS }}
         run: |
