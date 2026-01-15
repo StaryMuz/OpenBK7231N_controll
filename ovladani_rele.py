@@ -89,8 +89,8 @@ class MqttRelaisController:
         self.username = username
         self.password = password
         self.base = base_topic.rstrip("/")
-        self.topic_set = f"{self.base}/1/set"
-        self.topic_get = f"{self.base}/1/get"
+        self.topic_set = f"{self.base}/2/set"
+        self.topic_get = f"{self.base}/2/get"
 
         self._lock = threading.Lock()
         self._last_payload = None
