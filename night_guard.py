@@ -6,8 +6,8 @@ MQTT_BROKER = os.environ["MQTT_BROKER"]
 MQTT_USER   = os.environ["MQTT_USER"]
 MQTT_PASS   = os.environ["MQTT_PASS"]
 
-TOPIC_GET = "starymuz@centrum.cz/rele/1/get"
-TOPIC_SET = "starymuz@centrum.cz/rele/1/set"
+TOPIC_GET = "starymuz@centrum.cz/rele/2/get"
+TOPIC_SET = "starymuz@centrum.cz/rele/2/set"
 
 state = None  # "0", "1" nebo None = neznámý
 
