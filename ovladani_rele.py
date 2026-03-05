@@ -50,7 +50,7 @@ def nacti_ceny():
     return pd.read_csv(CENY_SOUBOR)
 
 def je_cena_pod_limitem(df):
-    prg_now = datetime.now(ZoneInfo("Europe/Prague")) + pd.Timedelta(minutes=6)
+    prg_now = datetime.now(ZoneInfo("Europe/Prague"))
     ctvrthodina_index = prg_now.hour * 4 + prg_now.minute // 15 + 1
     row = df[df["Ctvrthodina"] == ctvrthodina_index]
     if row.empty:
@@ -112,7 +112,6 @@ class MqttRelaisController:
         else:
             print(f"MQTT chyba reason_code={reason_code}")
 
-    # FIX 1: správná signatura API v2
     def _on_disconnect(self, client, userdata, reason_code, properties, reason_string):
         print("MQTT odpojeno")
         self._connected_event.clear()
@@ -147,7 +146,6 @@ class MqttRelaisController:
         with self._lock:
             self._last_payload = None
 
-        # FIX 2: clear MUSÍ být před publish
         self._confirm_event.clear()
         print(f"Publikuji {desired_state} na {self.topic_set}")
         self.client.publish(self.topic_set, desired_state)
@@ -232,13 +230,17 @@ if __name__ == "__main__":
         next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
         cekej_do_casoveho_bodu(next_hour)
+        now = datetime.now(ZoneInfo("Europe/Prague"))
+
     else:
         print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
 
-    for i in range(4):
+    cycles = 4 - (now.minute // 15)
+
+    for i in range(cycles):
         print(f"Spouštím cyklus #{i+1} v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
         main_cycle()
-        if i < 3:
+        if i < cycles - 1:
             next_quarter = nejblizsi_ctvrthodina()
             print(f"Čekám do další čtvrthodiny ({next_quarter.strftime('%H:%M:%S')})...")
             cekej_do_casoveho_bodu(next_quarter)
