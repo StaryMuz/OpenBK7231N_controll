@@ -1,4 +1,4 @@
-name: Stahni OTE data a pošli graf / text
+name: stahni_data
 
 on:
   workflow_dispatch:
