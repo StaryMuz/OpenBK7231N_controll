@@ -222,19 +222,31 @@ def nejblizsi_ctvrthodina(now=None):
         return (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     return now.replace(minute=minute, second=0, microsecond=0)
 
-# ====== START ======
+# ====== START A SAMOPOKRAČOVÁNÍ ======
 if __name__ == "__main__":
+    from subprocess import Popen
     now = datetime.now(ZoneInfo("Europe/Prague"))
 
+    # časové okno pro ukončení (konec dne)
+    # zimní čas: 19:00, letní čas: 22:00
+    month = now.month
+    if month in (3, 4, 5, 6, 7, 8, 9, 10):
+        # letní čas (březen–říjen)
+        end_hour = 22
+    else:
+        # zimní čas (listopad–únor)
+        end_hour = 19
+
+    # čekání na začátek čtvrthodiny
     if now.minute >= 46:
         next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
         cekej_do_casoveho_bodu(next_hour)
         now = datetime.now(ZoneInfo("Europe/Prague"))
-
     else:
         print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
 
+    # spočítání kolik cyklů zbývá do konce hodiny
     cycles = 4 - (now.minute // 15)
 
     for i in range(cycles):
@@ -245,4 +257,12 @@ if __name__ == "__main__":
             print(f"Čekám do další čtvrthodiny ({next_quarter.strftime('%H:%M:%S')})...")
             cekej_do_casoveho_bodu(next_quarter)
 
-    print(f"Ukončeno v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+    print(f"Aktuální hodina dokončena v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+
+    # ====== Samopokračování pro další hodinu ======
+    now = datetime.now(ZoneInfo("Europe/Prague"))
+    if now.hour < end_hour:
+        print("Spouštím skrypt pro následující hodinu...")
+        Popen(["python", os.path.abspath(__file__)])
+    else:
+        print("Dosažen konec dne, ukončuji skript.")
