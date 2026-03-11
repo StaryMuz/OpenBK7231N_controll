@@ -263,6 +263,6 @@ if __name__ == "__main__":
     now = datetime.now(ZoneInfo("Europe/Prague"))
     if now.hour < end_hour:
         print("Spouštím skrypt pro následující hodinu...")
-        Popen(["python", os.path.abspath(__file__)])
+        Popen(["python", os.path.abspath(ovladani_rele.py)])
     else:
         print("Dosažen konec dne, ukončuji skript.")
