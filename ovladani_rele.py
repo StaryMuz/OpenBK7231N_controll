@@ -2,8 +2,9 @@
 """
 ovladani_rele.py
 - relé se vždy zapne/vypne podle aktuální ceny
-- Telegram oznámení se odešle jen při změně stavu oproti poslední_stav.txt
+- Telegram oznámení se odešle jen při změně stavu oproti posledni_stav.txt
 - logika spuštění cyklů po čtvrthodinách s čekáním do nejbližší čtvrthodiny
+- nový run pro další hodinu spouští GitHub Actions workflow_dispatch (pro Actions)
 """
 
 import os
@@ -14,6 +15,7 @@ from zoneinfo import ZoneInfo
 import requests
 import pandas as pd
 import paho.mqtt.client as mqtt
+import json
 
 # ====== KONFIGURACE ======
 LIMIT_EUR = 13.0
@@ -222,20 +224,16 @@ def nejblizsi_ctvrthodina(now=None):
         return (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     return now.replace(minute=minute, second=0, microsecond=0)
 
-# ====== START A SAMOPOKRAČOVÁNÍ ======
+# ====== START A SAMOPOKRAČOVÁNÍ PRO GITHUB ACTIONS ======
 if __name__ == "__main__":
-    from subprocess import Popen
     now = datetime.now(ZoneInfo("Europe/Prague"))
 
     # časové okno pro ukončení (konec dne)
-    # zimní čas: 19:00, letní čas: 22:00
     month = now.month
     if month in (3, 4, 5, 6, 7, 8, 9, 10):
-        # letní čas (březen–říjen)
-        end_hour = 22
+        end_hour = 22  # letní čas
     else:
-        # zimní čas (listopad–únor)
-        end_hour = 19
+        end_hour = 19  # zimní čas
 
     # čekání na začátek čtvrthodiny
     if now.minute >= 46:
@@ -259,10 +257,25 @@ if __name__ == "__main__":
 
     print(f"Aktuální hodina dokončena v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
 
-    # ====== Samopokračování pro další hodinu ======
+    # ====== Samopokračování pro další hodinu přes GitHub API ======
     now = datetime.now(ZoneInfo("Europe/Prague"))
     if now.hour < end_hour:
-        print("Spouštím skrypt pro následující hodinu...")
-        Popen(["python", "ovladani_rele.py"])
+        print("Spouštím nový run workflow pro další hodinu...")
+
+        repo = os.getenv("GITHUB_REPOSITORY")        # např. "uzivatel/repo"
+        workflow = os.getenv("GITHUB_WORKFLOW")      # název .yml workflow
+        token = os.getenv("GITHUB_TOKEN")            # secrets.GITHUB_TOKEN
+
+        if repo and workflow and token:
+            url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
+            headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+            data = {"ref": "main"}  # nebo jiná větev, kde je workflow
+            try:
+                r = requests.post(url, headers=headers, data=json.dumps(data))
+                print(f"API response: {r.status_code}, {r.text}")
+            except Exception as e:
+                print(f"Chyba při spouštění workflow: {e}")
+        else:
+            print("Chybí GITHUB env proměnné, nový run nelze spustit.")
     else:
         print("Dosažen konec dne, ukončuji skript.")
