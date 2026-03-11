@@ -1,292 +1,346 @@
 # -*- coding: utf-8 -*-
-"""
-ovladani_rele.py
-- relé se vždy zapne/vypne podle aktuální ceny
-- Telegram oznámení se odešle jen při změně stavu oproti posledni_stav.txt
-- logika spuštění cyklů po čtvrthodinách s čekáním do nejbližší čtvrthodiny
-- nový run pro další hodinu spouští GitHub Actions workflow_dispatch (pro Actions)
-"""
 
 import os
 import time
 import threading
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 import requests
 import pandas as pd
-import paho.mqtt.client as mqtt
 import json
 
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+import paho.mqtt.client as mqtt
+
+
 # ====== KONFIGURACE ======
+
 LIMIT_EUR = 13.0
 CENY_SOUBOR = "ceny_ote.csv"
 POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"
 
-MQTT_BROKER   = os.getenv("MQTT_BROKER")
-MQTT_PORT     = int(os.getenv("MQTT_PORT", "1883"))
-MQTT_USER     = os.getenv("MQTT_USER")
-MQTT_PASS     = os.getenv("MQTT_PASS")
-MQTT_BASE     = os.getenv("MQTT_BASE")
+MQTT_BROKER = os.getenv("MQTT_BROKER")
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_USER = os.getenv("MQTT_USER")
+MQTT_PASS = os.getenv("MQTT_PASS")
+MQTT_BASE = os.getenv("MQTT_BASE")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+GH_TOKEN = os.getenv("GH_TOKEN_CUSTOM")
 
 POKUSY = 3
 CEKANI_SEKUND = 120
 
-# ====== HELPERS ======
-def send_telegram(text: str):
+
+# ====== TELEGRAM ======
+
+def send_telegram(text):
+
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram není nastaven — přeskočeno.")
         return
+
     try:
+
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        data = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}
+
+        data = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": text,
+            "parse_mode": "HTML"
+        }
+
         requests.post(url, data=data, timeout=15)
+
     except Exception as e:
-        print(f"Telegram error: {e}")
+        print("Telegram chyba:", e)
+
+
+# ====== CENY ======
 
 def nacti_ceny():
+
     if not os.path.exists(CENY_SOUBOR):
-        raise FileNotFoundError(f"Soubor {CENY_SOUBOR} nenalezen.")
+        raise FileNotFoundError("Soubor s cenami neexistuje")
+
     return pd.read_csv(CENY_SOUBOR)
 
+
 def je_cena_pod_limitem(df):
+
     prg_now = datetime.now(ZoneInfo("Europe/Prague"))
-    ctvrthodina_index = prg_now.hour * 4 + prg_now.minute // 15 + 1
-    row = df[df["Ctvrthodina"] == ctvrthodina_index]
+
+    index = prg_now.hour * 4 + prg_now.minute // 15 + 1
+
+    row = df[df["Ctvrthodina"] == index]
+
     if row.empty:
-        raise Exception(f"Nenalezena cena pro periodu {ctvrthodina_index}.")
+        raise Exception("Cena nenalezena")
+
     cena = float(row.iloc[0]["Cena (EUR/MWh)"])
-    start_min = (ctvrthodina_index - 1) * 15
+
+    start_min = (index - 1) * 15
     end_min = start_min + 15
-    start_time = f"{start_min // 60:02d}:{start_min % 60:02d}"
-    end_time   = f"{end_min // 60:02d}:{end_min % 60:02d}"
-    print(f"Cena {start_time}–{end_time}: {cena:.2f} EUR/MWh")
-    return (cena < LIMIT_EUR, cena)
+
+    start = f"{start_min//60:02d}:{start_min%60:02d}"
+    end = f"{end_min//60:02d}:{end_min%60:02d}"
+
+    print(f"Cena {start}–{end}: {cena:.2f} EUR/MWh")
+
+    return cena < LIMIT_EUR
+
+
+# ====== POSLEDNÍ STAV ======
 
 def nacti_posledni_stav():
+
     if not os.path.exists(POSLEDNI_STAV_SOUBOR):
         return None
+
     try:
-        with open(POSLEDNI_STAV_SOUBOR, "r", encoding="utf-8") as f:
-            stav = f.read().strip()
-            return int(stav) if stav in ("0", "1") else None
-    except Exception:
+
+        with open(POSLEDNI_STAV_SOUBOR, "r") as f:
+            return int(f.read().strip())
+
+    except:
         return None
 
-def uloz_posledni_stav(stav: int):
+
+def uloz_posledni_stav(stav):
+
     try:
-        print(f"Ukládám stav {stav} do {POSLEDNI_STAV_SOUBOR}")
-        with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
+
+        with open(POSLEDNI_STAV_SOUBOR, "w") as f:
             f.write(str(stav))
+
     except Exception as e:
-        print(f"Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
+        print("Nelze uložit stav:", e)
 
-# ====== MQTT třída (API v2) ======
+
+# ====== MQTT ======
+
 class MqttRelaisController:
+
     def __init__(self, broker, port, username, password, base_topic):
-        self.broker = broker
-        self.port = port
-        self.username = username
-        self.password = password
-        self.base = base_topic.rstrip("/")
-        self.topic_set = f"{self.base}/2/set"
-        self.topic_get = f"{self.base}/2/get"
 
-        self._lock = threading.Lock()
-        self._last_payload = None
-        self._confirm_event = threading.Event()
-        self._connected_event = threading.Event()
+        self.topic_set = f"{base_topic}/2/set"
+        self.topic_get = f"{base_topic}/2/get"
 
-        self.client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
-        self.client.username_pw_set(self.username, self.password)
+        self._event = threading.Event()
+
+        self._payload = None
+
+        self.client = mqtt.Client(
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2
+        )
+
+        self.client.username_pw_set(username, password)
 
         self.client.on_connect = self._on_connect
-        self.client.on_disconnect = self._on_disconnect
         self.client.on_message = self._on_message
 
-    def _on_connect(self, client, userdata, flags, reason_code, properties):
-        if reason_code == 0:
-            print(f"MQTT připojeno {self.broker}:{self.port}")
-            client.subscribe(self.topic_get)
-            self._connected_event.set()
-        else:
-            print(f"MQTT chyba reason_code={reason_code}")
+        self.broker = broker
+        self.port = port
 
-    def _on_disconnect(self, client, userdata, reason_code, properties, reason_string):
-        print("MQTT odpojeno")
-        self._connected_event.clear()
+    def _on_connect(self, client, userdata, flags, reason_code, properties):
+
+        if reason_code == 0:
+
+            print("MQTT připojeno")
+
+            client.subscribe(self.topic_get)
 
     def _on_message(self, client, userdata, msg):
+
         if msg.retain:
-            print(f"Ignoruji retained zprávu: {msg.payload.decode(errors='ignore')}")
             return
 
-        payload = msg.payload.decode(errors="ignore").strip()
-        print(f"MQTT {msg.topic}: {payload}")
+        payload = msg.payload.decode()
 
-        if payload in ("1", "0"):
-            with self._lock:
-                self._last_payload = payload
-                self._confirm_event.set()
+        print("MQTT", msg.topic, payload)
 
-    def connect(self, timeout=10):
-        self.client.connect(self.broker, self.port, keepalive=60)
+        self._payload = payload
+
+        self._event.set()
+
+    def connect(self):
+
+        self.client.connect(self.broker, self.port)
+
         self.client.loop_start()
-        if not self._connected_event.wait(timeout):
-            raise Exception("Nepodařilo se připojit k MQTT brokeru.")
+
+        time.sleep(2)
 
     def disconnect(self):
+
         self.client.loop_stop()
+
         self.client.disconnect()
 
-    def publish_and_wait_confirmation(self, desired_state: str, timeout_seconds: int):
-        if desired_state not in ("1", "0"):
-            raise ValueError("Stav musí být '1' nebo '0'.")
+    def publish_and_wait(self, desired):
 
-        with self._lock:
-            self._last_payload = None
+        self._event.clear()
 
-        self._confirm_event.clear()
-        print(f"Publikuji {desired_state} na {self.topic_set}")
-        self.client.publish(self.topic_set, desired_state)
+        self.client.publish(self.topic_set, desired)
 
-        if not self._confirm_event.wait(timeout_seconds):
-            print("Timeout — žádné potvrzení.")
-            return False
+        if self._event.wait(CEKANI_SEKUND):
 
-        with self._lock:
-            confirmed = (self._last_payload == desired_state)
-            print(f"Potvrzeno: {self._last_payload} (oček.: {desired_state})")
-            return confirmed
+            return self._payload == desired
 
-# ====== HLAVNÍ LOGIKA ======
+        return False
+
+
+# ====== CYKLUS ======
+
 def main_cycle():
-    ctl = None
-    try:
-        df = nacti_ceny()
-        pod_limitem, cena = je_cena_pod_limitem(df)
-        desired_payload = "1" if pod_limitem else "0"
-        desired_payload_int = int(desired_payload)
-        akce_text = "zapnuto" if desired_payload == "1" else "vypnuto"
 
-        posledni_stav = nacti_posledni_stav()
-        print(f"Poslední známý stav: {posledni_stav}")
+    ctl = None
+
+    try:
+
+        df = nacti_ceny()
+
+        zapnout = je_cena_pod_limitem(df)
+
+        payload = "1" if zapnout else "0"
+
+        posledni = nacti_posledni_stav()
+
+        print("Poslední stav:", posledni)
 
         ctl = MqttRelaisController(
-            MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE
+            MQTT_BROKER,
+            MQTT_PORT,
+            MQTT_USER,
+            MQTT_PASS,
+            MQTT_BASE
         )
-        ctl.connect(timeout=15)
 
-        success = False
-        for pokus in range(1, POKUSY + 1):
-            print(f"--- Pokus {pokus}/{POKUSY} ---")
-            if ctl.publish_and_wait_confirmation(desired_payload, CEKANI_SEKUND):
-                success = True
-                cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-                if posledni_stav != desired_payload_int:
-                    send_telegram(f"<b>Relé {akce_text}</b> ({cas}).")
-                else:
-                    print("Stav se nezměnil – Telegram se neposílá.")
-                uloz_posledni_stav(desired_payload_int)
+        ctl.connect()
+
+        for pokus in range(POKUSY):
+
+            print("Pokus", pokus + 1)
+
+            if ctl.publish_and_wait(payload):
+
+                print("Potvrzeno")
+
+                stav_int = int(payload)
+
+                if posledni != stav_int:
+
+                    text = "Relé zapnuto" if payload == "1" else "Relé vypnuto"
+
+                    send_telegram(text)
+
+                uloz_posledni_stav(stav_int)
+
                 break
-            else:
-                print(f"Nepotvrzeno, pokus {pokus}")
-
-        if not success:
-            cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-            send_telegram(f"<b>Relé nereaguje</b> ({cas}).")
 
     except Exception as e:
-        print(f"Chyba: {e}")
-        send_telegram(f"Chyba v ovladani_rele.py: {e}")
+
+        print("Chyba:", e)
+
     finally:
+
         if ctl:
-            try:
-                ctl.disconnect()
-            except Exception:
-                pass
+            ctl.disconnect()
 
-def cekej_do_casoveho_bodu(target_dt):
+
+# ====== ČAS ======
+
+def cekej_do(target):
+
     while True:
+
         now = datetime.now(ZoneInfo("Europe/Prague"))
-        delta = (target_dt - now).total_seconds()
-        if delta <= 0:
+
+        if now >= target:
             break
-        time.sleep(min(delta, 30))
 
-def nejblizsi_ctvrthodina(now=None):
-    if now is None:
-        now = datetime.now(ZoneInfo("Europe/Prague"))
-    minute = ((now.minute // 15) + 1) * 15
-    if minute >= 60:
-        return (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    return now.replace(minute=minute, second=0, microsecond=0)
+        time.sleep(10)
 
-# ====== START A SAMOPOKRAČOVÁNÍ PRO GITHUB ACTIONS ======
-if __name__ == "__main__":
+
+def dalsi_ctvrthodina():
+
     now = datetime.now(ZoneInfo("Europe/Prague"))
 
-    # časové okno pro ukončení (konec dne)
-    month = now.month
-    if month in (3, 4, 5, 6, 7, 8, 9, 10):
-        end_hour = 22  # letní čas
-    else:
-        end_hour = 19  # zimní čas
+    minute = ((now.minute // 15) + 1) * 15
 
-    # čekání na začátek čtvrthodiny
+    if minute >= 60:
+
+        return (now + timedelta(hours=1)).replace(minute=0, second=0)
+
+    return now.replace(minute=minute, second=0)
+
+
+# ====== HLAVNÍ PROGRAM ======
+
+if __name__ == "__main__":
+
+    now = datetime.now(ZoneInfo("Europe/Prague"))
+
+    end_hour = 22 if now.month in (3,4,5,6,7,8,9,10) else 19
+
     if now.minute >= 46:
-        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-        print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
-        cekej_do_casoveho_bodu(next_hour)
-        now = datetime.now(ZoneInfo("Europe/Prague"))
-    else:
-        print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
 
-    # spočítání kolik cyklů zbývá do konce hodiny
+        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0)
+
+        print("Čekám na další hodinu")
+
+        cekej_do(next_hour)
+
     cycles = 4 - (now.minute // 15)
 
     for i in range(cycles):
-        print(f"Spouštím cyklus #{i+1} v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+
+        print("Cyklus", i+1)
+
         main_cycle()
+
         if i < cycles - 1:
-            next_quarter = nejblizsi_ctvrthodina()
-            print(f"Čekám do další čtvrthodiny ({next_quarter.strftime('%H:%M:%S')})...")
-            cekej_do_casoveho_bodu(next_quarter)
 
-    print(f"Aktuální hodina dokončena v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+            next_q = dalsi_ctvrthodina()
 
-# ====== Samopokračování pro další hodinu přes GitHub API ======
-import requests
-import json
-import os
+            print("Čekám do", next_q)
 
-now = datetime.now(ZoneInfo("Europe/Prague"))
+            cekej_do(next_q)
 
-if now.hour < end_hour:
-    print("Spouštím nový run workflow pro další hodinu...")
+    print("Hodina dokončena")
 
-    repo = os.getenv("GITHUB_REPOSITORY")     # např. "uzivatel/repo"
-    token = os.getenv("GH_TOKEN_CUSTOM")      # env z .yml: ${{ secrets.MY_PAT }}
+    # ===== SAMOPOKRAČOVÁNÍ =====
 
-    workflow_file = "ovladani_rele.yml"       # název workflow souboru v .github/workflows/
-    branch = "main"                           # větev, kde workflow je
+    now = datetime.now(ZoneInfo("Europe/Prague"))
 
-    if repo and token:
-        url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_file}/dispatches"
+    if now.hour < end_hour and GH_TOKEN:
+
+        print("Spouštím další run")
+
+        repo = os.getenv("GITHUB_REPOSITORY")
+
+        workflow = "ovladani_rele.yml"
+
+        url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
+
         headers = {
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {GH_TOKEN}",
             "Accept": "application/vnd.github+json"
         }
-        data = {"ref": branch}
+
+        data = {"ref": "main"}
 
         try:
-            r = requests.post(url, headers=headers, data=json.dumps(data), timeout=20)
-            print(f"API odpověď: {r.status_code} {r.text}")
+
+            r = requests.post(url, headers=headers, data=json.dumps(data))
+
+            print("API:", r.status_code)
+
         except Exception as e:
-            print(f"Chyba při spouštění dalšího runu: {e}")
+
+            print("Chyba API:", e)
+
     else:
-        print("Chybí repo nebo token – další run nelze spustit.")
-else:
-    print("Dosažen konec dne, ukončuji skript.")
+
+        print("Konec dne nebo chybí token")
