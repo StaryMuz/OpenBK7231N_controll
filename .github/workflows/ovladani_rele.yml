@@ -1,58 +1,43 @@
 name: Ovládání WiFi relé
 
+on:
+  schedule:
+    - cron: "48 5-17 * 11,12,1,2 *"
+    - cron: "48 1-18 * 4,5,6,7,8,9 *"
+  workflow_dispatch:
+
 concurrency:
   group: ovladani-wifi-rele
-  cancel-in-progress: true
-
-on:
-  workflow_dispatch:
-  schedule:
-    # zimní čas – 6:50–18:50 českého času, běh od celé hodiny a následujících 45 minut
-    - cron: "48 5-17 * 11,12,1,2 *"
-    - cron: "48 5-17 25-31 10 *"
-    - cron: "48 5-17 1-24 3 *"
-    # letní čas – 4:50–21:50 českého času, běh od celé hodiny a následujících 45 minut
-    - cron: "48 1-18 * 4,5,6,7,8,9 *"
-    - cron: "48 1-18 1-24 10 *"
-    - cron: "48 1-18 25-31 3 *"
+  cancel-in-progress: false
 
 jobs:
   run:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+
+    env:
+      MQTT_BROKER: ${{ secrets.MQTT_BROKER }}
+      MQTT_PORT: ${{ secrets.MQTT_PORT }}
+      MQTT_USER: ${{ secrets.MQTT_USER }}
+      MQTT_PASS: ${{ secrets.MQTT_PASS }}
+      MQTT_BASE: ${{ secrets.MQTT_BASE }}
+
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      GH_TOKEN_CUSTOM: ${{ secrets.MY_PAT }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install requests pandas openpyxl paho-mqtt
+          pip install pandas requests paho-mqtt
 
-      - name: Run relay control script
+      - name: Run script
         run: python ovladani_rele.py
-        # ⬅️ Script si sám řídí intervaly mezi jednotlivými cykly
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-          MQTT_BROKER:        ${{ secrets.MQTT_BROKER }}
-          MQTT_PORT:          ${{ secrets.MQTT_PORT }}
-          MQTT_USER:          ${{ secrets.MQTT_USER }}
-          MQTT_PASS:          ${{ secrets.MQTT_PASS }}
-          MQTT_BASE:          ${{ secrets.MQTT_BASE }}
-
-      - name: Debug – list files
-        run: ls -la
-
-      - name: Commit and push last state
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add posledni_stav.txt
-          git commit -m "Aktualizace posledni_stav.txt" || echo "Žádná změna – commit se neprovádí."
-          git push || echo "Nic k pushnutí."
