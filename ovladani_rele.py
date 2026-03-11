@@ -192,23 +192,14 @@ class MqttRelaisController:
 
 
 # ====== CYKLUS ======
-
 def main_cycle():
-
     ctl = None
-
     try:
-
         df = nacti_ceny()
-
         zapnout = je_cena_pod_limitem(df)
-
         payload = "1" if zapnout else "0"
-
         posledni = nacti_posledni_stav()
-
         print("Poslední stav:", posledni)
-
         ctl = MqttRelaisController(
             MQTT_BROKER,
             MQTT_PORT,
@@ -216,131 +207,79 @@ def main_cycle():
             MQTT_PASS,
             MQTT_BASE
         )
-
         ctl.connect()
-
         for pokus in range(POKUSY):
-
             print("Pokus", pokus + 1)
-
             if ctl.publish_and_wait(payload):
-
                 print("Potvrzeno")
-
                 stav_int = int(payload)
-
                 if posledni != stav_int:
-
                     text = "Relé zapnuto" if payload == "1" else "Relé vypnuto"
-
                     send_telegram(text)
-
                 uloz_posledni_stav(stav_int)
-
                 break
-
     except Exception as e:
-
         print("Chyba:", e)
-
     finally:
-
         if ctl:
             ctl.disconnect()
 
-
 # ====== ČAS ======
-
 def cekej_do(target):
-
     while True:
-
         now = datetime.now(ZoneInfo("Europe/Prague"))
-
         if now >= target:
             break
-
         time.sleep(10)
 
-
 def dalsi_ctvrthodina():
-
     now = datetime.now(ZoneInfo("Europe/Prague"))
-
     minute = ((now.minute // 15) + 1) * 15
-
     if minute >= 60:
-
         return (now + timedelta(hours=1)).replace(minute=0, second=0)
-
     return now.replace(minute=minute, second=0)
 
-
 # ====== HLAVNÍ PROGRAM ======
-
 if __name__ == "__main__":
-
     now = datetime.now(ZoneInfo("Europe/Prague"))
-
     end_hour = 22 if now.month in (3,4,5,6,7,8,9,10) else 19
-
     if now.minute >= 46:
-
         next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0)
-
         print("Čekám na další hodinu")
-
         cekej_do(next_hour)
-
     cycles = 4 - (now.minute // 15)
-
     for i in range(cycles):
-
         print("Cyklus", i+1)
-
         main_cycle()
-
         if i < cycles - 1:
-
             next_q = dalsi_ctvrthodina()
-
             print("Čekám do", next_q)
-
             cekej_do(next_q)
 
     print("Hodina dokončena")
 
-    # ===== SAMOPOKRAČOVÁNÍ =====
+# ===== SAMOPOKRAČOVÁNÍ =====
+now = datetime.now(ZoneInfo("Europe/Prague"))
 
-    now = datetime.now(ZoneInfo("Europe/Prague"))
+if now.hour < end_hour and GH_TOKEN:
+    print("Spouštím další run")
+    repo = os.getenv("GITHUB_REPOSITORY")
+    workflow = "ovladani_rele.yml"
+    print(f"Repo: {repo}, Workflow: {workflow}")
 
-    if now.hour < end_hour and GH_TOKEN:
+    url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
+    headers = {
+        "Authorization": f"Bearer {GH_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+    data = {"ref": "main"}
 
-        print("Spouštím další run")
-
-        repo = os.getenv("GITHUB_REPOSITORY")
-
-        workflow = "ovladani_rele.yml"
-
-        url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
-
-        headers = {
-            "Authorization": f"Bearer {GH_TOKEN}",
-            "Accept": "application/vnd.github+json"
-        }
-
-        data = {"ref": "main"}
-
-        try:
-
-            r = requests.post(url, headers=headers, data=json.dumps(data))
-
-            print("API:", r.status_code)
-
-        except Exception as e:
-
-            print("Chyba API:", e)
-
-    else:
-
-        print("Konec dne nebo chybí token")
+    try:
+        r = requests.post(url, headers=headers, json=data, timeout=20)
+        print(f"API odpověď: {r.status_code}")
+        if r.text:
+            print(f"API text: {r.text}")
+    except Exception as e:
+        print("Chyba API:", e)
+else:
+    print("Konec dne nebo chybí token")
