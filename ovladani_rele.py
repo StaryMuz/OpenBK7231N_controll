@@ -35,161 +35,95 @@ CEKANI_SEKUND = 120
 
 
 # ====== TELEGRAM ======
-
 def send_telegram(text):
-
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         return
-
     try:
-
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-
         data = {
             "chat_id": TELEGRAM_CHAT_ID,
             "text": text,
             "parse_mode": "HTML"
         }
-
         requests.post(url, data=data, timeout=15)
-
     except Exception as e:
         print("Telegram chyba:", e)
 
 
 # ====== CENY ======
-
 def nacti_ceny():
-
     if not os.path.exists(CENY_SOUBOR):
         raise FileNotFoundError("Soubor s cenami neexistuje")
-
     return pd.read_csv(CENY_SOUBOR)
-
-
 def je_cena_pod_limitem(df):
-
     prg_now = datetime.now(ZoneInfo("Europe/Prague"))
-
     index = prg_now.hour * 4 + prg_now.minute // 15 + 1
-
     row = df[df["Ctvrthodina"] == index]
-
     if row.empty:
         raise Exception("Cena nenalezena")
-
     cena = float(row.iloc[0]["Cena (EUR/MWh)"])
-
     start_min = (index - 1) * 15
     end_min = start_min + 15
-
     start = f"{start_min//60:02d}:{start_min%60:02d}"
     end = f"{end_min//60:02d}:{end_min%60:02d}"
-
     print(f"Cena {start}–{end}: {cena:.2f} EUR/MWh")
-
     return cena < LIMIT_EUR
 
-
 # ====== POSLEDNÍ STAV ======
-
 def nacti_posledni_stav():
-
     if not os.path.exists(POSLEDNI_STAV_SOUBOR):
         return None
-
     try:
-
         with open(POSLEDNI_STAV_SOUBOR, "r") as f:
             return int(f.read().strip())
-
     except:
         return None
-
-
 def uloz_posledni_stav(stav):
-
     try:
-
         with open(POSLEDNI_STAV_SOUBOR, "w") as f:
             f.write(str(stav))
-
     except Exception as e:
         print("Nelze uložit stav:", e)
 
-
 # ====== MQTT ======
-
 class MqttRelaisController:
-
     def __init__(self, broker, port, username, password, base_topic):
-
         self.topic_set = f"{base_topic}/2/set"
         self.topic_get = f"{base_topic}/2/get"
-
         self._event = threading.Event()
-
         self._payload = None
-
         self.client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2
         )
-
         self.client.username_pw_set(username, password)
-
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
-
         self.broker = broker
         self.port = port
-
     def _on_connect(self, client, userdata, flags, reason_code, properties):
-
         if reason_code == 0:
-
             print("MQTT připojeno")
-
             client.subscribe(self.topic_get)
-
     def _on_message(self, client, userdata, msg):
-
         if msg.retain:
             return
-
         payload = msg.payload.decode()
-
         print("MQTT", msg.topic, payload)
-
         self._payload = payload
-
         self._event.set()
-
     def connect(self):
-
         self.client.connect(self.broker, self.port)
-
         self.client.loop_start()
-
         time.sleep(2)
-
     def disconnect(self):
-
         self.client.loop_stop()
-
         self.client.disconnect()
-
     def publish_and_wait(self, desired):
-
         self._event.clear()
-
         self.client.publish(self.topic_set, desired)
-
         if self._event.wait(CEKANI_SEKUND):
-
             return self._payload == desired
-
         return False
-
 
 # ====== CYKLUS ======
 def main_cycle():
