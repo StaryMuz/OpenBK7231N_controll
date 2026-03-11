@@ -6,6 +6,7 @@ import threading
 import requests
 import pandas as pd
 import json
+import sys
 
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -55,6 +56,7 @@ def nacti_ceny():
     if not os.path.exists(CENY_SOUBOR):
         raise FileNotFoundError("Soubor s cenami neexistuje")
     return pd.read_csv(CENY_SOUBOR)
+
 def je_cena_pod_limitem(df):
     prg_now = datetime.now(ZoneInfo("Europe/Prague"))
     index = prg_now.hour * 4 + prg_now.minute // 15 + 1
@@ -78,6 +80,7 @@ def nacti_posledni_stav():
             return int(f.read().strip())
     except:
         return None
+
 def uloz_posledni_stav(stav):
     try:
         with open(POSLEDNI_STAV_SOUBOR, "w") as f:
@@ -100,10 +103,12 @@ class MqttRelaisController:
         self.client.on_message = self._on_message
         self.broker = broker
         self.port = port
+
     def _on_connect(self, client, userdata, flags, reason_code, properties):
         if reason_code == 0:
             print("MQTT připojeno")
             client.subscribe(self.topic_get)
+
     def _on_message(self, client, userdata, msg):
         if msg.retain:
             return
@@ -111,13 +116,16 @@ class MqttRelaisController:
         print("MQTT", msg.topic, payload)
         self._payload = payload
         self._event.set()
+
     def connect(self):
         self.client.connect(self.broker, self.port)
         self.client.loop_start()
         time.sleep(2)
+
     def disconnect(self):
         self.client.loop_stop()
         self.client.disconnect()
+
     def publish_and_wait(self, desired):
         self._event.clear()
         self.client.publish(self.topic_set, desired)
@@ -177,10 +185,12 @@ def dalsi_ctvrthodina():
 if __name__ == "__main__":
     now = datetime.now(ZoneInfo("Europe/Prague"))
     end_hour = 22 if now.month in (3,4,5,6,7,8,9,10) else 19
+
     if now.minute >= 46:
         next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0)
         print("Čekám na další hodinu")
         cekej_do(next_hour)
+
     cycles = 4 - (now.minute // 15)
     for i in range(cycles):
         print("Cyklus", i+1)
@@ -192,28 +202,33 @@ if __name__ == "__main__":
 
     print("Hodina dokončena")
 
-# ===== SAMOPOKRAČOVÁNÍ =====
-now = datetime.now(ZoneInfo("Europe/Prague"))
+    # ===== SAMOPOKRAČOVÁNÍ =====
+    now = datetime.now(ZoneInfo("Europe/Prague"))
 
-if now.hour < end_hour and GH_TOKEN:
-    print("Spouštím další run")
-    repo = os.getenv("GITHUB_REPOSITORY")
-    workflow = "ovladani_rele.yml"
-    print(f"Repo: {repo}, Workflow: {workflow}")
+    if now.hour >= end_hour:
+        # zachováme původní bezpečné ukončení dne
+        print(f"Dosažen konec dne ({now.hour}:00), ukončuji skript.")
+        sys.exit(0)
 
-    url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
-    headers = {
-        "Authorization": f"Bearer {GH_TOKEN}",
-        "Accept": "application/vnd.github+json"
-    }
-    data = {"ref": "main"}
+    if now.hour < end_hour and GH_TOKEN:
+        print("Spouštím další run")
+        repo = os.getenv("GITHUB_REPOSITORY")
+        workflow = "ovladani_rele.yml"
+        print(f"Repo: {repo}, Workflow: {workflow}")
 
-    try:
-        r = requests.post(url, headers=headers, json=data, timeout=20)
-        print(f"API odpověď: {r.status_code}")
-        if r.text:
-            print(f"API text: {r.text}")
-    except Exception as e:
-        print("Chyba API:", e)
-else:
-    print("Konec dne nebo chybí token")
+        url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
+        headers = {
+            "Authorization": f"Bearer {GH_TOKEN}",
+            "Accept": "application/vnd.github+json"
+        }
+        data = {"ref": "main"}
+
+        try:
+            r = requests.post(url, headers=headers, json=data, timeout=20)
+            print(f"API odpověď: {r.status_code}")
+            if r.text:
+                print(f"API text: {r.text}")
+        except Exception as e:
+            print("Chyba API:", e)
+    else:
+        print("Konec dne nebo chybí token")
