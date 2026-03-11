@@ -257,25 +257,36 @@ if __name__ == "__main__":
 
     print(f"Aktuální hodina dokončena v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
 
-    # ====== Samopokračování pro další hodinu přes GitHub API ======
-    now = datetime.now(ZoneInfo("Europe/Prague"))
-    if now.hour < end_hour:
-        print("Spouštím nový run workflow pro další hodinu...")
+# ====== Samopokračování pro další hodinu přes GitHub API ======
+import requests
+import json
+import os
 
-        repo = os.getenv("GITHUB_REPOSITORY")        # např. "uzivatel/repo"
-        workflow = os.getenv("GITHUB_WORKFLOW")      # název .yml workflow
-        token = os.getenv("GITHUB_TOKEN")            # secrets.GITHUB_TOKEN
+now = datetime.now(ZoneInfo("Europe/Prague"))
 
-        if repo and workflow and token:
-            url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
-            headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
-            data = {"ref": "main"}  # nebo jiná větev, kde je workflow
-            try:
-                r = requests.post(url, headers=headers, data=json.dumps(data))
-                print(f"API response: {r.status_code}, {r.text}")
-            except Exception as e:
-                print(f"Chyba při spouštění workflow: {e}")
-        else:
-            print("Chybí GITHUB env proměnné, nový run nelze spustit.")
+if now.hour < end_hour:
+    print("Spouštím nový run workflow pro další hodinu...")
+
+    repo = os.getenv("GITHUB_REPOSITORY")     # např. "uzivatel/repo"
+    token = os.getenv("GH_TOKEN_CUSTOM")      # env z .yml: ${{ secrets.MY_PAT }}
+
+    workflow_file = "ovladani_rele.yml"       # název workflow souboru v .github/workflows/
+    branch = "main"                           # větev, kde workflow je
+
+    if repo and token:
+        url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_file}/dispatches"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json"
+        }
+        data = {"ref": branch}
+
+        try:
+            r = requests.post(url, headers=headers, data=json.dumps(data), timeout=20)
+            print(f"API odpověď: {r.status_code} {r.text}")
+        except Exception as e:
+            print(f"Chyba při spouštění dalšího runu: {e}")
     else:
-        print("Dosažen konec dne, ukončuji skript.")
+        print("Chybí repo nebo token – další run nelze spustit.")
+else:
+    print("Dosažen konec dne, ukončuji skript.")
