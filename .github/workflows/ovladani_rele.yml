@@ -2,7 +2,7 @@ name: ovladani_rele
 # restart cron
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   schedule:
     # zimní čas
     - cron: "48 5-17 * 11,12,1,2 *"
