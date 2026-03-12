@@ -258,13 +258,14 @@ if __name__ == "__main__":
 
     if now.minute >= 46:
         next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-        print(f"Čekám do celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
+        print(f"Čekám do začátku celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
         cekej_do_casoveho_bodu(next_hour)
         now = datetime.now(ZoneInfo("Europe/Prague"))
 
     else:
         print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
 
+    # spočítat počet zbývajících čtvrthodin aktuální hodiny
     cycles = 4 - (now.minute // 15)
 
     for i in range(cycles):
@@ -275,4 +276,11 @@ if __name__ == "__main__":
             print(f"Čekám do další čtvrthodiny ({next_quarter.strftime('%H:%M:%S')})...")
             cekej_do_casoveho_bodu(next_quarter)
 
-    print(f"Ukončeno v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+    print(f"Dokončeno v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
+
+    # ====== kontrola večerní hodiny a případné spuštění dalšího runu ======
+    if now.hour < 22:  # nebo jiná podmínka pro "večer"
+        print("Spouštím další run workflow pro další hodinu...")
+        spustit_dalsi_beh()
+    else:
+        print("Večerní hodina – nový run nebude spuštěn.")
