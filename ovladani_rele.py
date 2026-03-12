@@ -2,8 +2,9 @@
 """
 ovladani_rele.py
 - relé se vždy zapne/vypne podle aktuální ceny
-- Telegram oznámení se odešle jen při změně stavu oproti poslední_stav.txt
-- logika spuštění cyklů po čtvrthodinách s čekáním do nejbližší čtvrthodiny
+- Telegram oznámení se odešle jen při změně stavu oproti posledni_stav.txt
+- logika spuštění cyklů po čtvrthodinách v rámci aktuální hodiny
+- po poslední čtvrthodině hodiny skript počká do začátku další hodiny a případně spustí nový workflow
 """
 
 import os
@@ -28,9 +29,9 @@ MQTT_BASE     = os.getenv("MQTT_BASE")
 GITHUB_TOKEN = os.getenv("MY_PAT")
 GITHUB_REPO  = os.getenv("GITHUB_REPOSITORY")
 GITHUB_WORKFLOW = "ovladani_rele.yml"
+
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
-
 
 POKUSY = 3
 CEKANI_SEKUND = 120
@@ -47,6 +48,7 @@ def send_telegram(text: str):
     except Exception as e:
         print(f"Telegram error: {e}")
 
+
 def spustit_dalsi_beh():
     if not GITHUB_TOKEN or not GITHUB_REPO:
         print("Chybí GITHUB_TOKEN nebo GITHUB_REPOSITORY – nelze spustit další běh.")
@@ -54,30 +56,27 @@ def spustit_dalsi_beh():
 
     try:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/actions/workflows/{GITHUB_WORKFLOW}/dispatches"
-
         headers = {
             "Authorization": f"Bearer {GITHUB_TOKEN}",
             "Accept": "application/vnd.github+json"
         }
-
         data = {
             "ref": "main"
         }
-
         r = requests.post(url, headers=headers, json=data, timeout=30)
-
         if r.status_code == 204:
             print("Spuštěn další běh workflow.")
         else:
             print(f"Chyba při spouštění workflow: {r.status_code} {r.text}")
-
     except Exception as e:
         print(f"Nelze spustit další workflow: {e}")
+
 
 def nacti_ceny():
     if not os.path.exists(CENY_SOUBOR):
         raise FileNotFoundError(f"Soubor {CENY_SOUBOR} nenalezen.")
     return pd.read_csv(CENY_SOUBOR)
+
 
 def je_cena_pod_limitem(df):
     prg_now = datetime.now(ZoneInfo("Europe/Prague"))
@@ -93,6 +92,7 @@ def je_cena_pod_limitem(df):
     print(f"Cena {start_time}–{end_time}: {cena:.2f} EUR/MWh")
     return (cena < LIMIT_EUR, cena)
 
+
 def nacti_posledni_stav():
     if not os.path.exists(POSLEDNI_STAV_SOUBOR):
         return None
@@ -103,6 +103,7 @@ def nacti_posledni_stav():
     except Exception:
         return None
 
+
 def uloz_posledni_stav(stav: int):
     try:
         print(f"Ukládám stav {stav} do {POSLEDNI_STAV_SOUBOR}")
@@ -110,6 +111,7 @@ def uloz_posledni_stav(stav: int):
             f.write(str(stav))
     except Exception as e:
         print(f"Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
+
 
 # ====== MQTT třída (API v2) ======
 class MqttRelaisController:
@@ -189,6 +191,7 @@ class MqttRelaisController:
             print(f"Potvrzeno: {self._last_payload} (oček.: {desired_state})")
             return confirmed
 
+
 # ====== HLAVNÍ LOGIKA ======
 def main_cycle():
     ctl = None
@@ -236,6 +239,7 @@ def main_cycle():
             except Exception:
                 pass
 
+
 def cekej_do_casoveho_bodu(target_dt):
     while True:
         now = datetime.now(ZoneInfo("Europe/Prague"))
@@ -244,6 +248,7 @@ def cekej_do_casoveho_bodu(target_dt):
             break
         time.sleep(min(delta, 30))
 
+
 def nejblizsi_ctvrthodina(now=None):
     if now is None:
         now = datetime.now(ZoneInfo("Europe/Prague"))
@@ -251,6 +256,7 @@ def nejblizsi_ctvrthodina(now=None):
     if minute >= 60:
         return (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     return now.replace(minute=minute, second=0, microsecond=0)
+
 
 # ====== START ======
 if __name__ == "__main__":
@@ -261,11 +267,10 @@ if __name__ == "__main__":
         print(f"Čekám do začátku celé hodiny ({next_hour.strftime('%H:%M:%S')})...")
         cekej_do_casoveho_bodu(next_hour)
         now = datetime.now(ZoneInfo("Europe/Prague"))
-
     else:
         print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
 
-    # spočítat počet zbývajících čtvrthodin aktuální hodiny
+    # počet zbývajících čtvrthodin v aktuální hodině
     cycles = 4 - (now.minute // 15)
 
     for i in range(cycles):
@@ -278,8 +283,12 @@ if __name__ == "__main__":
 
     print(f"Dokončeno v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
 
-    # ====== kontrola večerní hodiny a případné spuštění dalšího runu ======
-    if now.hour < 22:  # nebo jiná podmínka pro "večer"
+    # ====== čekání do začátku další hodiny a případný self-trigger ======
+    now = datetime.now(ZoneInfo("Europe/Prague"))
+    if now.hour < 22:  # kontrola večerní hodiny
+        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        print(f"Čekám na začátek další hodiny ({next_hour.strftime('%H:%M:%S')}) před spuštěním nového runu...")
+        cekej_do_casoveho_bodu(next_hour)
         print("Spouštím další run workflow pro další hodinu...")
         spustit_dalsi_beh()
     else:
