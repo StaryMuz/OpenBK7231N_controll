@@ -1,55 +1,52 @@
 name: ovladani_rele
-# restart cron
-
-on:
-  workflow_dispatch: {}
-  schedule:
-    # zimní čas
-    - cron: "48 5-17 * 11,12,1,2 *"
-    - cron: "48 5-17 25-31 10 *"
-    - cron: "48 5-17 1-24 3 *"
-
-    # letní čas
-    - cron: "48 1-18 * 4,5,6,7,8,9 *"
-    - cron: "48 1-18 1-24 10 *"
-    - cron: "48 1-18 25-31 3 *"
-
 
 concurrency:
   group: ovladani_rele
   cancel-in-progress: false
 
+on:
+  workflow_dispatch:
+  schedule:
+    # zimní čas – 6:50–18:50 českého času, běh od celé hodiny a následujících 45 minut
+    - cron: "48 5-17 * 11,12,1,2 *"
+    - cron: "48 5-17 25-31 10 *"
+    - cron: "48 5-17 1-24 3 *"
+    # letní čas – 4:50–21:50 českého času, běh od celé hodiny a následujících 45 minut
+    - cron: "48 1-18 * 4,5,6,7,8,9 *"
+    - cron: "48 1-18 1-24 10 *"
+    - cron: "48 1-18 25-31 3 *"
+
 jobs:
   run:
-    runs-on: ubuntu-latest
-
-    env:
-      MQTT_BROKER: ${{ secrets.MQTT_BROKER }}
-      MQTT_PORT: ${{ secrets.MQTT_PORT }}
-      MQTT_USER: ${{ secrets.MQTT_USER }}
-      MQTT_PASS: ${{ secrets.MQTT_PASS }}
-      MQTT_BASE: ${{ secrets.MQTT_BASE }}
-
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      GH_TOKEN_CUSTOM: ${{ secrets.MY_PAT }}
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests pandas openpyxl paho-mqtt
 
-      - name: Run script
+      - name: Run relay control script
         run: python ovladani_rele.py
+        # ?? Script si sám řídí intervaly mezi jednotlivými cykly
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          MQTT_BROKER:        ${{ secrets.MQTT_BROKER }}
+          MQTT_PORT:          ${{ secrets.MQTT_PORT }}
+          MQTT_USER:          ${{ secrets.MQTT_USER }}
+          MQTT_PASS:          ${{ secrets.MQTT_PASS }}
+          MQTT_BASE:          ${{ secrets.MQTT_BASE }}
+          MY_PAT:             ${{ secrets.MY_PAT }}
+          GITHUB_REPOSITORY:  ${{ github.repository }}
 
       - name: Debug – list files
         run: ls -la
