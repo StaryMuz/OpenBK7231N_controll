@@ -1,20 +1,21 @@
 name: ovladani_rele
 
 on:
+  workflow_dispatch:
   schedule:
-# zimní čas
-    - cron: "48 5 * 11,12,1,2 *"
-    - cron: "48 5 25-31 10 *"
-    - cron: "48 5 1-24 3 *"
+    # zimní čas
+    - cron: "48 5-17 * 11,12,1,2 *"
+    - cron: "48 5-17 25-31 10 *"
+    - cron: "48 5-17 1-24 3 *"
 
     # letní čas
-    - cron: "48 1 * 4,5,6,7,8,9 *"
-    - cron: "48 1 1-24 10 *"
-    - cron: "48 1 25-31 3 *"
-  workflow_dispatch:
+    - cron: "48 1-18 * 4,5,6,7,8,9 *"
+    - cron: "48 1-18 1-24 10 *"
+    - cron: "48 1-18 25-31 3 *"
+
 
 concurrency:
-  group: ovladani-wifi-rele
+  group: ovladani_rele
   cancel-in-progress: false
 
 jobs:
@@ -30,11 +31,10 @@ jobs:
 
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-
       GH_TOKEN_CUSTOM: ${{ secrets.MY_PAT }}
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -44,7 +44,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas requests paho-mqtt
+          python -m pip install --upgrade pip
+          pip install requests pandas openpyxl paho-mqtt
 
       - name: Run script
         run: python ovladani_rele.py
+
+      - name: Debug – list files
+        run: ls -la
+
+      - name: Commit and push last state
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add posledni_stav.txt
+          git commit -m "Aktualizace posledni_stav.txt" || echo "Žádná změna – commit se neprovádí."
+          git push || echo "Nic k pushnutí."
