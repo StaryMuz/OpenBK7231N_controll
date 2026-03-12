@@ -2,8 +2,15 @@ name: ovladani_rele
 
 on:
   schedule:
-    - cron: "48 5-17 * 11,12,1,2 *"
-    - cron: "48 1-18 * 4,5,6,7,8,9 *"
+# zimní čas
+    - cron: "48 5 * 11,12,1,2 *"
+    - cron: "48 5 25-31 10 *"
+    - cron: "48 5 1-24 3 *"
+
+    # letní čas
+    - cron: "48 1 * 4,5,6,7,8,9 *"
+    - cron: "48 1 1-24 10 *"
+    - cron: "48 1 25-31 3 *"
   workflow_dispatch:
 
 concurrency:
