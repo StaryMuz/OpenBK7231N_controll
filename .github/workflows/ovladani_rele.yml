@@ -1,4 +1,5 @@
 name: ovladani_rele
+# restart cron
 
 on:
   workflow_dispatch:
