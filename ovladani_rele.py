@@ -72,6 +72,18 @@ def spustit_dalsi_beh():
         print(f"Nelze spustit další workflow: {e}")
 
 
+def commitni_posledni_stav():
+    try:
+        print("Provádím commit posledni_stav.txt...")
+        os.system('git config --global user.name "github-actions"')
+        os.system('git config --global user.email "github-actions@github.com"')
+        os.system(f'git add {POSLEDNI_STAV_SOUBOR}')
+        os.system('git commit -m "Aktualizace posledni_stav.txt" || echo "Žádná změna – commit se neprovádí."')
+        os.system('git push || echo "Nic k pushnutí."')
+    except Exception as e:
+        print(f"Chyba při commitování: {e}")
+
+
 def nacti_ceny():
     if not os.path.exists(CENY_SOUBOR):
         raise FileNotFoundError(f"Soubor {CENY_SOUBOR} nenalezen.")
@@ -113,7 +125,7 @@ def uloz_posledni_stav(stav: int):
         print(f"Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
 
 
-# ====== MQTT třída (API v2) ======
+# ====== MQTT třída ======
 class MqttRelaisController:
     def __init__(self, broker, port, username, password, base_topic):
         self.broker = broker
@@ -270,7 +282,6 @@ if __name__ == "__main__":
     else:
         print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
 
-    # počet zbývajících čtvrthodin v aktuální hodině
     cycles = 4 - (now.minute // 15)
 
     for i in range(cycles):
@@ -283,12 +294,15 @@ if __name__ == "__main__":
 
     print(f"Dokončeno v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
 
-    # ====== čekání do začátku další hodiny a případný self-trigger ======
     now = datetime.now(ZoneInfo("Europe/Prague"))
-    if now.hour < 22:  # kontrola večerní hodiny
+    if now.hour < 22:
+
+        commitni_posledni_stav()
+
         next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         print(f"Čekám na začátek další hodiny ({next_hour.strftime('%H:%M:%S')}) před spuštěním nového runu...")
         cekej_do_casoveho_bodu(next_hour)
+
         print("Spouštím další run workflow pro další hodinu...")
         spustit_dalsi_beh()
     else:
