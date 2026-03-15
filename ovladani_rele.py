@@ -280,7 +280,7 @@ if __name__ == "__main__":
         cekej_do_casoveho_bodu(next_hour)
         now = datetime.now(ZoneInfo("Europe/Prague"))
     else:
-        print("Jsme v první čtvrthodině – první cyklus se spustí ihned.")
+        print("Běží již nová hodina – první cyklus se spustí ihned.")
 
     cycles = 4 - (now.minute // 15)
 
