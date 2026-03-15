@@ -256,9 +256,16 @@ def cekej_do_casoveho_bodu(target_dt):
     while True:
         now = datetime.now(ZoneInfo("Europe/Prague"))
         delta = (target_dt - now).total_seconds()
+
         if delta <= 0:
             break
-        time.sleep(min(delta, 30))
+
+        if delta > 240:      # více než 4 minuty
+            time.sleep(30)
+        elif delta > 60:     # 1–4 minuty
+            time.sleep(10)
+        else:                # méně než 1 minuta
+            time.sleep(1)
 
 
 def nejblizsi_ctvrthodina(now=None):
