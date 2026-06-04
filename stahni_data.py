@@ -27,7 +27,7 @@ HTTP_TIMEOUT = 30  # sekundy
 
 def ziskej_data_z_ote(max_pokusu=5, cekani=300):
     """Stáhne zítřejší SPOT ceny z OTE, opakuje při neúspěchu."""
-    den = zitra.strftime("%d")
+    den = zitra.strftime("%d")-1
     mesic = zitra.strftime("%m")
     rok = zitra.strftime("%Y")
     url = f"https://www.ote-cr.cz/pubweb/attachments/01/{rok}/month{mesic}/day{den}/DT_15MIN_{den}_{mesic}_{rok}_CZ.xlsx"
