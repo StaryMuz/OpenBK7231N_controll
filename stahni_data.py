@@ -134,7 +134,8 @@ def odesli_telegram_graf(buf, intervaly):
         print(f"⚠️ Telegram výjimka: {e}")
 
 # ====== HLAVNÍ BĚH ======
-if __name__ == "__main__":
+
+def stahni_data():
     df = ziskej_data_z_ote()
     uloz_csv(df)
     intervaly = zjisti_intervaly_pod_limitem(df)
@@ -146,3 +147,7 @@ if __name__ == "__main__":
         odesli_telegram_text("ℹ️ Zítra žádné ceny pod limitem.")
 
     print("🏁 Hotovo.")
+
+
+if __name__ == "__main__":
+    stahni_data()
