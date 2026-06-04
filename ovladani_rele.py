@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 import requests
 import pandas as pd
 import paho.mqtt.client as mqtt
+import stahni_data
 
 # ====== KONFIGURACE ======
 LIMIT_EUR = 13.0
