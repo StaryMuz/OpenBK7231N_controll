@@ -319,3 +319,11 @@ if __name__ == "__main__":
 
     else:
         print("Večerní hodina – nový run nebude spuštěn.")
+
+        try:
+            print("Provádím závěrečné stažení OTE dat...")
+            stahni_data.stahni_data()
+            print("OTE data úspěšně stažena.")
+        except Exception as e:
+            print(f"Chyba při stahování OTE dat: {e}")
+            send_telegram(f"Chyba při stahování OTE dat: {e}")
