@@ -304,7 +304,7 @@ if __name__ == "__main__":
 
 
     now = datetime.now(ZoneInfo("Europe/Prague"))
-    if now.hour < 22:
+    if now.hour < 21:
 
         commitni_posledni_stav()
 
