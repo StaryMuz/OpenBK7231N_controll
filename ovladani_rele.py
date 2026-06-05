@@ -84,6 +84,17 @@ def commitni_posledni_stav():
     except Exception as e:
         print(f"Chyba při commitování: {e}")
 
+def commitni_ceny():
+    try:
+        print("Provádím commit ceny_ote.csv...")
+        os.system('git config --global user.name "github-actions"')
+        os.system('git config --global user.email "github-actions@github.com"')
+        os.system('git add ceny_ote.csv')
+        os.system('git commit -m "Aktualizace CSV s cenami" || echo "Žádná změna – commit se neprovádí."')
+        os.system('git push || echo "Nic k pushnutí."')
+    except Exception as e:
+        print(f"Chyba při commitování CSV: {e}")
+
 
 def nacti_ceny():
     if not os.path.exists(CENY_SOUBOR):
@@ -317,13 +328,16 @@ if __name__ == "__main__":
         print("Spouštím další run workflow pro další hodinu...")
         spustit_dalsi_beh()
 
-    else:
-        print("Večerní hodina – nový run nebude spuštěn.")
+else:
+    print("Večerní hodina – nový run nebude spuštěn.")
 
-        try:
-            print("Provádím závěrečné stažení OTE dat...")
-            stahni_data.stahni_data()
-            print("OTE data úspěšně stažena.")
-        except Exception as e:
-            print(f"Chyba při stahování OTE dat: {e}")
-            send_telegram(f"Chyba při stahování OTE dat: {e}")
+    try:
+        print("Provádím závěrečné stažení OTE dat...")
+        stahni_data.stahni_data()
+
+        commitni_ceny()
+
+        print("OTE data úspěšně stažena.")
+    except Exception as e:
+        print(f"Chyba při stahování OTE dat: {e}")
+        send_telegram(f"Chyba při stahování OTE dat: {e}")
