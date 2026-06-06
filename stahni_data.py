@@ -15,7 +15,8 @@ from datetime import datetime, timedelta
 # ====== KONFIGURAČNÍ PROMĚNNÉ ======
 LIMIT_EUR = float(os.getenv("LIMIT_EUR", "13.0"))
 dnes = datetime.now(ZoneInfo("Europe/Prague"))
-zitra = dnes + timedelta(days=1)
+zitra = dnes
+#+ timedelta(days=1)
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
