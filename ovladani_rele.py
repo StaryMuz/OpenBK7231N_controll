@@ -314,19 +314,24 @@ if __name__ == "__main__":
     print(f"Dokončeno v {datetime.now(ZoneInfo('Europe/Prague')).strftime('%H:%M:%S')}")
 
 
-    now = datetime.now(ZoneInfo("Europe/Prague"))
-    if now.hour < 21:
+now = datetime.now(ZoneInfo("Europe/Prague"))
 
-        commitni_posledni_stav()
+if now.hour < 21:
 
-        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-        trigger_time = next_hour - timedelta(seconds=120)
+    commitni_posledni_stav()
 
-        print(f"Čekám do {trigger_time.strftime('%H:%M:%S')} pro spuštění nového runu...")
-        cekej_do_casoveho_bodu(trigger_time)
+    next_hour = (now + timedelta(hours=1)).replace(
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+    trigger_time = next_hour - timedelta(seconds=120)
 
-        print("Spouštím další run workflow pro další hodinu...")
-        spustit_dalsi_beh()
+    print(f"Čekám do {trigger_time.strftime('%H:%M:%S')} pro spuštění nového runu...")
+    cekej_do_casoveho_bodu(trigger_time)
+
+    print("Spouštím další run workflow pro další hodinu...")
+    spustit_dalsi_beh()
 
 else:
     print("Večerní hodina – nový run nebude spuštěn.")
