@@ -47,7 +47,7 @@ def send_telegram(text: str):
         data = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}
         requests.post(url, data=data, timeout=15)
     except Exception as e:
-        print(f"Telegram error: {e}")
+        print(f"Telegram error [{type(e).__name__}]: {e}")
 
 
 def spustit_dalsi_beh():
@@ -70,7 +70,7 @@ def spustit_dalsi_beh():
         else:
             print(f"Chyba při spouštění workflow: {r.status_code} {r.text}")
     except Exception as e:
-        print(f"Nelze spustit další workflow: {e}")
+        print(f"Nelze spustit další workflow [{type(e).__name__}]: {e}")
 
 
 def commitni_posledni_stav():
@@ -82,7 +82,7 @@ def commitni_posledni_stav():
         os.system('git commit -m "Aktualizace posledni_stav.txt" || echo "Žádná změna – commit se neprovádí."')
         os.system('git push || echo "Nic k pushnutí."')
     except Exception as e:
-        print(f"Chyba při commitování: {e}")
+        print(f"Chyba při commitování [{type(e).__name__}]: {e}")
 
 def commitni_ceny():
     try:
@@ -93,7 +93,7 @@ def commitni_ceny():
         os.system('git commit -m "Aktualizace CSV s cenami" || echo "Žádná změna – commit se neprovádí."')
         os.system('git push || echo "Nic k pushnutí."')
     except Exception as e:
-        print(f"Chyba při commitování CSV: {e}")
+        print(f"Chyba při commitování CSV [{type(e).__name__}]: {e}")
 
 
 def nacti_ceny():
@@ -134,7 +134,7 @@ def uloz_posledni_stav(stav: int):
         with open(POSLEDNI_STAV_SOUBOR, "w", encoding="utf-8") as f:
             f.write(str(stav))
     except Exception as e:
-        print(f"Nelze zapsat {POSLEDNI_STAV_SOUBOR}: {e}")
+        print(f"Nelze zapsat {POSLEDNI_STAV_SOUBOR} [{type(e).__name__}]: {e}")
 
 
 # ====== MQTT třída ======
@@ -353,8 +353,8 @@ elif now.hour == 21:
         print("OTE data úspěšně stažena.")
 
     except Exception as e:
-        print(f"Chyba při stahování OTE dat: {e}")
-        send_telegram(f"Chyba při stahování OTE dat: {e}")
+        print(f"Chyba při stahování OTE dat [{type(e).__name__}]: {e}")
+        send_telegram(f"Chyba při stahování OTE dat [{type(e).__name__}]: {e}")
 
     next_hour = (now + timedelta(hours=1)).replace(
         minute=0,
