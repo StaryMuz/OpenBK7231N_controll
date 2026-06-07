@@ -316,7 +316,10 @@ if __name__ == "__main__":
 
 now = datetime.now(ZoneInfo("Europe/Prague"))
 
-if now.hour < 21:
+# =====================================================
+# DENNÍ PROVOZ 05:00–20:59
+# =====================================================
+if 5 <= now.hour < 21:
 
     commitni_posledni_stav()
 
@@ -325,6 +328,7 @@ if now.hour < 21:
         second=0,
         microsecond=0
     )
+
     trigger_time = next_hour - timedelta(seconds=120)
 
     print(f"Čekám do {trigger_time.strftime('%H:%M:%S')} pro spuštění nového runu...")
@@ -333,8 +337,12 @@ if now.hour < 21:
     print("Spouštím další run workflow pro další hodinu...")
     spustit_dalsi_beh()
 
-else:
-    print("Večerní hodina – nový run nebude spuštěn.")
+# =====================================================
+# VEČERNÍ HODINA 21:00
+# =====================================================
+elif now.hour == 21:
+
+    print("Večerní hodina – stahuji OTE data.")
 
     try:
         print("Provádím závěrečné stažení OTE dat...")
@@ -343,6 +351,42 @@ else:
         commitni_ceny()
 
         print("OTE data úspěšně stažena.")
+
     except Exception as e:
         print(f"Chyba při stahování OTE dat: {e}")
         send_telegram(f"Chyba při stahování OTE dat: {e}")
+
+    next_hour = (now + timedelta(hours=1)).replace(
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    trigger_time = next_hour - timedelta(seconds=120)
+
+    print(f"Čekám do {trigger_time.strftime('%H:%M:%S')} pro spuštění nočního runu...")
+    cekej_do_casoveho_bodu(trigger_time)
+
+    print("Spouštím další run workflow...")
+    spustit_dalsi_beh()
+
+# =====================================================
+# NOČNÍ PAUZA 22:00–04:59
+# =====================================================
+else:
+
+    print("Noční pauza – ovládání relé se neprovádí.")
+
+    next_hour = (now + timedelta(hours=1)).replace(
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    trigger_time = next_hour - timedelta(seconds=120)
+
+    print(f"Čekám do {trigger_time.strftime('%H:%M:%S')} pro spuštění dalšího runu...")
+    cekej_do_casoveho_bodu(trigger_time)
+
+    print("Spouštím další run workflow...")
+    spustit_dalsi_beh()
