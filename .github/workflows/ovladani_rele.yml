@@ -23,7 +23,7 @@ on:
     #- cron: "48 1 * 4,5,6,7,8,9 *"
     #- cron: "48 1 1-24 10 *"
     #- cron: "48 1 25-31 3 *"
-    - cron: "00 1 * * *"
+    - cron: "0 1 * * *"
 
 permissions:
   contents: write
