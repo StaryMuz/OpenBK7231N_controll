@@ -2,7 +2,7 @@ name: watchdog_ovladani_rele
 
 on:
   schedule:
-    - cron: "0 1 * * *"
+    - cron: "10 3 * * *"   # 05:10 SELČ / 04:10 SEČ
   workflow_dispatch:
 
 jobs:
@@ -16,26 +16,45 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
 
-          RUNNING=$(curl -s \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/$REPO/actions/workflows/ovladani_rele.yml/runs?status=in_progress \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['total_count'])")
-
-          echo "Running ovladani_rele runs: $RUNNING"
-
-          if [ "$RUNNING" -eq 0 ]; then
-
-            echo "ovladani_rele neběží - spouštím."
-
-            curl -s -X POST \
+          zjisti_behy() {
+            curl -s \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
-              https://api.github.com/repos/$REPO/actions/workflows/ovladani_rele.yml/dispatches \
-              -d '{"ref":"main"}'
+              "https://api.github.com/repos/$REPO/actions/workflows/ovladani_rele.yml/runs?status=in_progress" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin)['total_count'])"
+          }
+
+          RUNNING1=$(zjisti_behy)
+
+          echo "První kontrola: $RUNNING1 běžících runů"
+
+          if [ "$RUNNING1" -eq 0 ]; then
+
+            echo "Žádný běžící run nenalezen. Čekám 120 sekund pro ověření..."
+            sleep 120
+
+            RUNNING2=$(zjisti_behy)
+
+            echo "Druhá kontrola: $RUNNING2 běžících runů"
+
+            if [ "$RUNNING2" -eq 0 ]; then
+
+              echo "Potvrzeno - ovladani_rele neběží. Spouštím workflow."
+
+              curl -s -X POST \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                https://api.github.com/repos/$REPO/actions/workflows/ovladani_rele.yml/dispatches \
+                -d '{"ref":"main"}'
+
+            else
+
+              echo "Mezitím byl nalezen běžící run. Nic nespouštím."
+
+            fi
 
           else
 
-            echo "ovladani_rele již běží."
+            echo "ovladani_rele již běží. Nic nespouštím."
 
           fi
