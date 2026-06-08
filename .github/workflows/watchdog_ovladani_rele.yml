@@ -1,0 +1,36 @@
+name: watchdog_ovladani_rele
+
+on:
+  schedule:
+    - cron: "0 1 * * *"   # 05:10 SELČ
+  workflow_dispatch:
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check running ovladani_rele
+        env:
+          GH_TOKEN: ${{ secrets.MY_PAT }}
+          REPO: ${{ github.repository }}
+        run: |
+          RUNNING=$(curl -s \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/$REPO/actions/workflows/ovladani_rele.yml/runs?status=in_progress \
+            | jq '.total_count')
+
+          echo "Running runs: $RUNNING"
+
+          if [ "$RUNNING" -eq 0 ]; then
+            echo "Žádný běžící run, spouštím ovladani_rele."
+
+            curl -s -X POST \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/$REPO/actions/workflows/ovladani_rele.yml/dispatches \
+              -d '{"ref":"main"}'
+          else
+            echo "ovladani_rele již běží."
+          fi
