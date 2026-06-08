@@ -2,7 +2,7 @@ name: watchdog_ovladani_rele
 
 on:
   schedule:
-    - cron: "10 3 * * *"
+    - cron: "0 1 * * *"
   workflow_dispatch:
 
 jobs:
