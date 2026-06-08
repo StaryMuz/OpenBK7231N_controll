@@ -254,8 +254,8 @@ def main_cycle():
             send_telegram(f"<b>Relé nereaguje</b> ({cas}).")
 
     except Exception as e:
-        print(f"Chyba: {e}")
-        send_telegram(f"Chyba v ovladani_rele.py: {e}")
+        print(f"Chyba [{type(e).__name__}]: {e}")
+        send_telegram(f"Chyba v ovladani_rele.py [{type(e).__name__}]: {e}")
     finally:
         if ctl:
             try:
