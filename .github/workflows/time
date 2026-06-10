@@ -1,4 +1,4 @@
-- name: Show time
+name: Show time
   run: |
     date
     date -u
