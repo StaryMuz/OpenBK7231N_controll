@@ -1,4 +1,7 @@
 name: Show time
+on:
+  workflow_dispatch:
+
   run: |
     date
     date -u
