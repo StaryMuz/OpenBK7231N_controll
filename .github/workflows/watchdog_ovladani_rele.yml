@@ -2,7 +2,8 @@ name: watchdog_ovladani_rele
 
 on:
   schedule:
-    - cron: "10 1 * * *"   # 05:10 SELČ / 04:10 SEČ
+    - cron: "10 1 * * *"
+    - cron: "50 18 * * *"
   workflow_dispatch:
 
 jobs:
