@@ -1,5 +1,32 @@
-name: Show time
+name: test_casu
 
-  run: |
-    date
-    date -u
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Vypis cas
+        run: |
+          echo "=== SYSTEM TIME ==="
+          date
+
+          echo ""
+          echo "=== UTC TIME ==="
+          date -u
+
+          echo ""
+          echo "=== PRAGUE TIME ==="
+          TZ=Europe/Prague date
+
+          echo ""
+          echo "=== PYTHON ==="
+          python3 - << 'EOF'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+
+          print("UTC:", datetime.now(ZoneInfo("UTC")))
+          print("Prague:", datetime.now(ZoneInfo("Europe/Prague")))
+          EOF
