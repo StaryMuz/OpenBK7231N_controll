@@ -186,10 +186,27 @@ class MqttRelaisController:
                 self._confirm_event.set()
 
     def connect(self, timeout=10):
-        self.client.connect(self.broker, self.port, keepalive=60)
+
+        print(f"MQTT connect na {self.broker}:{self.port}")
+
+        self.client.connect(
+            self.broker,
+            self.port,
+            keepalive=60
+        )
+
+        print("MQTT connect() vráceno OK")
+
         self.client.loop_start()
+
+        print(f"Čekám na MQTT CONNACK ({timeout}s)...")
+
         if not self._connected_event.wait(timeout):
-            raise Exception("Nepodařilo se připojit k MQTT brokeru.")
+            raise TimeoutError(
+                f"MQTT broker nepotvrdil připojení do {timeout}s"
+            )
+
+        print("MQTT CONNACK přijat")
 
     def disconnect(self):
         self.client.loop_stop()
@@ -229,11 +246,16 @@ def main_cycle():
         posledni_stav = nacti_posledni_stav()
         print(f"Poslední známý stav: {posledni_stav}")
 
+        print("Vytvářím MQTT klienta...")
+
         ctl = MqttRelaisController(
             MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE
         )
+
+        print("Volám connect()...")
         ctl.connect(timeout=15)
 
+        print("MQTT připojeno úspěšně.")
         success = False
         for pokus in range(1, POKUSY + 1):
             print(f"--- Pokus {pokus}/{POKUSY} ---")
