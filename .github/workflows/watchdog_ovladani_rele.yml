@@ -17,7 +17,8 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
         
-          echo "Kontrola spuštěna: $(TZ=Europe/Prague date '+%d.%m.%Y %H:%M:%S %Z')"
+          echo "Aktuální UTC čas:   $(date '+%d.%m.%Y %H:%M:%S %Z')"
+          echo "Aktuální Praha čas: $(TZ=Europe/Prague date '+%d.%m.%Y %H:%M:%S %Z')"
           
           zjisti_behy() {
             curl -s \
