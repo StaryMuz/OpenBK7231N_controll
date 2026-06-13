@@ -16,7 +16,9 @@ jobs:
           GH_TOKEN: ${{ secrets.MY_PAT }}
           REPO: ${{ github.repository }}
         run: |
-
+        
+          echo "Kontrola spuštěna: $(TZ=Europe/Prague date '+%d.%m.%Y %H:%M:%S %Z')"
+          
           zjisti_behy() {
             curl -s \
               -H "Authorization: Bearer $GH_TOKEN" \
