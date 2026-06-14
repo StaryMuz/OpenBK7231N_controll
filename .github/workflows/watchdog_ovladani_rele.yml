@@ -2,24 +2,67 @@ name: watchdog_ovladani_rele
 
 on:
   schedule:
-    - cron: "10 0 * * *" # každý den v 2:10 SELČ
-    - cron: "50 16 * * *" # každý den v 18:50 SELČ
+    - cron: "10 0 * * *"   # cca 02:10 SELČ
+    - cron: "00 8 * * *"   # cca 10:00 SELČ
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   watchdog:
     runs-on: ubuntu-22.04
 
     steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas openpyxl matplotlib
+
+      - name: Show current time
+        run: |
+          echo "Aktuální UTC čas:   $(date '+%d.%m.%Y %H:%M:%S %Z')"
+          echo "Aktuální Praha čas: $(TZ=Europe/Prague date '+%d.%m.%Y %H:%M:%S %Z')"
+
+      - name: Download OTE data (jen noční běh)
+        if: github.event.schedule == '10 0 * * *'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python stahni_data.py
+
+      - name: Commit OTE data (jen noční běh)
+        if: github.event.schedule == '10 0 * * *'
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          git add ceny_ote.csv
+
+          git commit -m "Aktualizace CSV s cenami" \
+            || echo "Žádná změna – commit se neprovádí."
+
+          git push \
+            || echo "Nic k pushnutí."
+
       - name: Check if ovladani_rele is running
         env:
           GH_TOKEN: ${{ secrets.MY_PAT }}
           REPO: ${{ github.repository }}
         run: |
-        
-          echo "Aktuální UTC čas:   $(date '+%d.%m.%Y %H:%M:%S %Z')"
-          echo "Aktuální Praha čas: $(TZ=Europe/Prague date '+%d.%m.%Y %H:%M:%S %Z')"
-          
+
           zjisti_behy() {
             curl -s \
               -H "Authorization: Bearer $GH_TOKEN" \
