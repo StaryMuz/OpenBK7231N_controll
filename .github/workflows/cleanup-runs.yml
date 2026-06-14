@@ -1,18 +1,14 @@
 name: Cleanup old workflow runs
-
 on:
   schedule:
     - cron: '0 3 * * 0'   # každou neděli ve 3:00 UTC
   workflow_dispatch:
-
 permissions:
   actions: write
   contents: read
-
 jobs:
   cleanup:
     runs-on: ubuntu-latest
-
     steps:
       - name: Delete old workflow runs
         uses: Mattraks/delete-workflow-runs@v2
