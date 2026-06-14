@@ -142,3 +142,132 @@ def vytvor_graf(df):
     buf.seek(0)
     plt.close(fig)
     return buf
+def zjisti_intervaly_pod_limitem(df):
+    """
+    Vrátí seznam intervalů,
+    kdy je cena pod limitem.
+    """
+    pod = df[
+        df["Cena (EUR/MWh)"] < LIMIT_EUR
+    ]["Ctvrthodina"].tolist()
+    intervaly = []
+    def ctvrthodina_na_cas(index):
+        start = (index - 1) * 15
+        hod = start // 60
+        minuty = start % 60
+        return (
+            f"{hod:02d}:"
+            f"{minuty:02d}"
+        )
+    if pod:
+        start = pod[0]
+        prev = pod[0]
+        for i in pod[1:]:
+            if i == prev + 1:
+                prev = i
+            else:
+                intervaly.append(
+                    f"{ctvrthodina_na_cas(start)}"
+                    f"–"
+                    f"{ctvrthodina_na_cas(prev + 1)}"
+                )
+                start = i
+                prev = i
+        intervaly.append(
+            f"{ctvrthodina_na_cas(start)}"
+            f"–"
+            f"{ctvrthodina_na_cas(prev + 1)}"
+        )
+    return intervaly
+def odesli_telegram_text(text):
+    if (
+        not TELEGRAM_BOT_TOKEN
+        or not TELEGRAM_CHAT_ID
+    ):
+        print(
+            "⚠️ Telegram není "
+            "nastaven – přeskočeno"
+        )
+        return
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{TELEGRAM_BOT_TOKEN}/"
+        f"sendMessage"
+    )
+    data = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text
+    }
+    try:
+        resp = requests.post(
+            url,
+            data=data,
+            timeout=HTTP_TIMEOUT
+        )
+        if resp.status_code != 200:
+            print(
+                "⚠️ Telegram API chyba: "
+                f"{resp.text}"
+            )
+    except Exception as e:
+        print(f"⚠️ Telegram výjimka: {e}")
+def odesli_telegram_graf(
+    buf,
+    intervaly
+):
+    if (
+        not TELEGRAM_BOT_TOKEN
+        or not TELEGRAM_CHAT_ID
+    ):
+        print(
+            "⚠️ Telegram není "
+            "nastaven – přeskočeno"
+        )
+        return
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{TELEGRAM_BOT_TOKEN}/"
+        f"sendPhoto"
+    )
+    popis = (
+        "Dnešní cena pod limitem "
+        "v časech:\n"
+        + "\n".join(intervaly)
+    )
+    files = {
+        "photo": (
+            "graf.png",
+            buf,
+            "image/png"
+        )
+    }
+    data = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "caption": popis
+    }
+    try:
+        resp = requests.post(
+            url,
+            files=files,
+            data=data,
+            timeout=HTTP_TIMEOUT
+        )
+        if resp.status_code != 200:
+            print(
+                "⚠️ Telegram API chyba: "
+                f"{resp.text}"
+            )
+    except Exception as e:
+        print(f"⚠️ Telegram výjimka: {e}")
+def stahni_data():
+    df = ziskej_data_z_ote()
+    uloz_csv(df)
+    intervaly = zjisti_intervaly_pod_limitem(df)
+    if intervaly:
+        graf_buf = vytvor_graf(df)
+        odesli_telegram_graf(graf_buf, intervaly)
+    else:
+        odesli_telegram_text(f"ℹ️ Dnes ({dnes.strftime('%d.%m.%Y')}) žádné ceny pod limitem.")
+    print("🏁 Hotovo.")
+if __name__ == "__main__":
+    stahni_data()
