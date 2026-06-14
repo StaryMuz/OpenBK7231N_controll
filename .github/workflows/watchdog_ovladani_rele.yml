@@ -1,40 +1,31 @@
 name: watchdog_ovladani_rele
-
 on:
   schedule:
     - cron: "10 0 * * *"   # cca 02:10 SELČ
     - cron: "00 8 * * *"   # cca 10:00 SELČ
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   watchdog:
     runs-on: ubuntu-22.04
-
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests pandas openpyxl matplotlib
-
       - name: Show current time
         run: |
           echo "Aktuální UTC čas:   $(date '+%d.%m.%Y %H:%M:%S %Z')"
           echo "Aktuální Praha čas: $(TZ=Europe/Prague date '+%d.%m.%Y %H:%M:%S %Z')"
-
       - name: Download OTE data (jen noční běh)
         if: github.event.schedule == '10 0 * * *'
         env:
@@ -42,7 +33,6 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python stahni_data.py
-
       - name: Commit OTE data (jen noční běh)
         if: github.event.schedule == '10 0 * * *'
         run: |
@@ -53,13 +43,11 @@ jobs:
             || echo "Žádná změna – commit se neprovádí."
           git push \
             || echo "Nic k pushnutí."
-
       - name: Check if ovladani_rele is running
         env:
           GH_TOKEN: ${{ secrets.MY_PAT }}
           REPO: ${{ github.repository }}
         run: |
-
           zjisti_behy() {
             curl -s \
               -H "Authorization: Bearer $GH_TOKEN" \
@@ -67,7 +55,6 @@ jobs:
               "https://api.github.com/repos/$REPO/actions/workflows/ovladani_rele.yml/runs?status=in_progress" \
               | python3 -c "import sys,json; print(json.load(sys.stdin)['total_count'])"
           }
-
           RUNNING1=$(zjisti_behy)
           echo "První kontrola: $RUNNING1 běžících runů"
           if [ "$RUNNING1" -eq 0 ]; then
@@ -82,14 +69,9 @@ jobs:
                 -H "Accept: application/vnd.github+json" \
                 https://api.github.com/repos/$REPO/actions/workflows/ovladani_rele.yml/dispatches \
                 -d '{"ref":"main"}'
-
             else
               echo "Mezitím byl nalezen běžící run. Nic nespouštím."
-
             fi
-
           else
-
             echo "ovladani_rele již běží. Nic nespouštím."
-
           fi
