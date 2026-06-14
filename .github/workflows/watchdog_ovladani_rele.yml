@@ -27,14 +27,14 @@ jobs:
           echo "Aktuální UTC čas:   $(date '+%d.%m.%Y %H:%M:%S %Z')"
           echo "Aktuální Praha čas: $(TZ=Europe/Prague date '+%d.%m.%Y %H:%M:%S %Z')"
       - name: Download OTE data (jen noční běh)
-        if: github.event.schedule == '10 0 * * *'
+        if: github.event.schedule == '10 22 * * *'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python stahni_data.py
       - name: Commit OTE data (jen noční běh)
-        if: github.event.schedule == '10 0 * * *'
+        if: github.event.schedule == '10 22 * * *'
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
