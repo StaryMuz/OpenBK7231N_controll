@@ -48,12 +48,9 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-
           git add ceny_ote.csv
-
           git commit -m "Aktualizace CSV s cenami" \
             || echo "Žádná změna – commit se neprovádí."
-
           git push \
             || echo "Nic k pushnutí."
 
@@ -72,22 +69,14 @@ jobs:
           }
 
           RUNNING1=$(zjisti_behy)
-
           echo "První kontrola: $RUNNING1 běžících runů"
-
           if [ "$RUNNING1" -eq 0 ]; then
-
             echo "Žádný běžící run nenalezen. Čekám 120 sekund pro ověření..."
             sleep 120
-
             RUNNING2=$(zjisti_behy)
-
             echo "Druhá kontrola: $RUNNING2 běžících runů"
-
             if [ "$RUNNING2" -eq 0 ]; then
-
               echo "Potvrzeno - ovladani_rele neběží. Spouštím workflow."
-
               curl -s -X POST \
                 -H "Authorization: Bearer $GH_TOKEN" \
                 -H "Accept: application/vnd.github+json" \
@@ -95,7 +84,6 @@ jobs:
                 -d '{"ref":"main"}'
 
             else
-
               echo "Mezitím byl nalezen běžící run. Nic nespouštím."
 
             fi
