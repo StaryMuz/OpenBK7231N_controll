@@ -535,3 +535,22 @@ else:
         "Noční pauza – "
         "ovládání relé se neprovádí."
     )
+    next_hour = (
+        now + timedelta(hours=1)
+    ).replace(
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+    trigger_time = (next_hour - timedelta(seconds=120))
+    print(
+        f"Čekám do "
+        f"{trigger_time.strftime('%H:%M:%S')} "
+        f"pro spuštění dalšího runu..."
+    )
+
+    cekej_do_casoveho_bodu(trigger_time)
+    print(
+        "Spouštím další run workflow..."
+    )
+    spustit_dalsi_beh()
