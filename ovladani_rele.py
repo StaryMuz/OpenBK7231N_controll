@@ -355,16 +355,6 @@ def dalsi_cela_hodina(now=None):
         microsecond=0
     )
 
-def rozhodovaci_cas_ctvrthodiny(now=None):
-    if now is None:
-        now = datetime.now(ZoneInfo("Europe/Prague"))
-    minuta = ((now.minute // 15) + 1) * 15
-    if minuta >= 60:
-        cil = (now + timedelta(hours=1)).replace(minute=0,second=0,microsecond=0)
-    else:
-        cil = now.replace(minute=minuta,second=0,microsecond=0)
-    return cil - timedelta(minutes=PREDSTIH_MINUT)
-
 # ====== START PROGRAMU ======
 
 if __name__ == "__main__":
