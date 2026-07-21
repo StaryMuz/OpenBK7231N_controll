@@ -102,11 +102,6 @@ def uloz_posledni_stav(stav: int):
 
 # ====== NOVÁ LOGIKA ŘÍZENÍ ČASU ======
 
-def je_predstihove_okno(now=None):
-    if now is None:
-        now = datetime.now(ZoneInfo("Europe/Prague"))
-    return now.minute >= 60 - PREDSTIH_MINUT
-
 def urci_rizenou_ctvrthodinu(predstih=False):
     now = datetime.now(ZoneInfo("Europe/Prague"))
 
