@@ -162,17 +162,15 @@ class MqttRelaisController:
 
     def _on_message(self, client, userdata, msg):
         if msg.retain:
+            print("Ignoruji retained zprávu: " f"{msg.payload.decode(errors='ignore')}")
             return
-
-        payload = msg.payload.decode(errors="ignore").strip()
-
-        print(f"MQTT {msg.topic}: {payload}")
-
+        payload = (msg.payload.decode(errors="ignore").strip())
+        print(f"MQTT {msg.topic}: " f"{payload}")
         if payload in ("1", "0"):
             with self._lock:
                 self._last_payload = payload
                 self._confirm_event.set()
-
+                
     def connect(self, timeout=10):
         print(f"MQTT connect na {self.broker}:{self.port}")
 
