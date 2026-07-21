@@ -345,13 +345,6 @@ def dalsi_ctvrthodina(now=None):
         microsecond=0
     )
 
-def rozhodovaci_cas_ctvrthodiny(now=None):
-    if now is None:
-        now = datetime.now(ZoneInfo("Europe/Prague"))
-    minuta = (now.minute // 15) * 15
-    start = now.replace(minute=minuta,second=0,microsecond=0)
-    return start - timedelta(minutes=5)
-
 def dalsi_cela_hodina(now=None):
     if now is None:
         now = datetime.now(ZoneInfo("Europe/Prague"))
@@ -395,60 +388,21 @@ if __name__ == "__main__":
     # Po prvním cyklu pokračují standardní
     # čtvrthodinové cykly.
 
-    while True:
-
-        now = datetime.now(ZoneInfo("Europe/Prague"))
-
-        if now.minute < 15:
-
-            next_cycle = now.replace(
-                minute=15,
-                second=0,
-                microsecond=0
-            )
-
-        elif now.minute < 30:
-
-            next_cycle = now.replace(
-                minute=30,
-                second=0,
-                microsecond=0
-            )
-
-        elif now.minute < 45:
-
-            next_cycle = now.replace(
-                minute=45,
-                second=0,
-                microsecond=0
-            )
-
-        else:
-
-            next_cycle = (now + timedelta(hours=1)).replace(
-                minute=0,
-                second=0,
-                microsecond=0
-            )
-
-        if next_cycle.hour != now.hour:
-
-            break
-
-        rozhodovaci_cas = next_cycle - timedelta(minutes=PREDSTIH_MINUT)
-
-        print(f"Čekám na rozhodnutí před cyklem {rozhodovaci_cas.strftime('%H:%M:%S')}")
-
-        cekej_do_casoveho_bodu(rozhodovaci_cas)
-
-        if rozhodni_spusteni_cyklu():
-            print("Cyklus spuštěn s předstihem.")
-            main_cycle(predstih=True)
-        else:
-            print(f"Čekám na začátek čtvrthodiny {next_cycle.strftime('%H:%M:%S')}")
-            cekej_do_casoveho_bodu(next_cycle)
-            main_cycle(predstih=False)
-
+while True:
+    now = datetime.now(ZoneInfo("Europe/Prague"))
+    next_cycle = dalsi_ctvrthodina(now)
+    if next_cycle.hour != now.hour:
+        break
+    rozhodovaci_cas = next_cycle - timedelta(minutes=PREDSTIH_MINUT)
+    print(f"Čekám na rozhodnutí před cyklem {rozhodovaci_cas.strftime('%H:%M:%S')}")
+    cekej_do_casoveho_bodu(rozhodovaci_cas)
+    if rozhodni_spusteni_cyklu():
+        print("Cyklus spuštěn s předstihem.")
+        main_cycle(predstih=True)
+    else:
+        print(f"Čekám na začátek čtvrthodiny {next_cycle.strftime('%H:%M:%S')}")
+        cekej_do_casoveho_bodu(next_cycle)
+        main_cycle(predstih=False)
 
     # Po ukončení hodiny se spustí další workflow
     # s předstihem REZERVA_START_MINUT.
