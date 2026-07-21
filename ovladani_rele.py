@@ -26,7 +26,7 @@ CENY_SOUBOR = "ceny_ote.csv"
 POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"
 
 PREDSTIH_MINUT = 10
-DO_KDY_PLATI_NOVA_HODINA = 46
+DO_KDY_PLATI_NOVA_HODINA = 46 # do této minuty se workflow považuje za spuštěné v nové hodině
 
 MQTT_BROKER = os.getenv("MQTT_BROKER")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
