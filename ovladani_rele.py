@@ -26,6 +26,7 @@ POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"
 
 PREDSTIH_MINUT = 5
 REZERVA_START_MINUT = PREDSTIH_MINUT + 2
+HRANICE_OKAMZITEHO_STARTU = 60 - REZERVA_START_MINUT + 1
 
 MQTT_BROKER = os.getenv("MQTT_BROKER")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -359,55 +360,22 @@ def dalsi_cela_hodina(now=None):
 # ====== START PROGRAMU ======
 
 if __name__ == "__main__":
-
     now = datetime.now(ZoneInfo("Europe/Prague"))
-
-    # Workflow je spuštěn před další hodinou.
-    # Čeká pouze do času:
-    #
-    # celá hodina - PREDSTIH_MINUT
-    #
-    # Potom se rozhodne, zda první cyklus
-    # poběží s předstihem nebo až na začátku čtvrthodiny.
-
-    start_hodiny = dalsi_cela_hodina(now)
-
-    start_rozhodovani = start_hodiny - timedelta(minutes=PREDSTIH_MINUT)
-
-    if now < start_rozhodovani:
-
-        print(
-            f"Čekám do rozhodovacího bodu "
-            f"{start_rozhodovani.strftime('%H:%M:%S')}"
-        )
-
-        cekej_do_casoveho_bodu(start_rozhodovani)
-
-    now = datetime.now(ZoneInfo("Europe/Prague"))
-
-    if rozhodni_spusteni_cyklu():
-
-        print(
-            "První cyklus spuštěn s předstihem."
-        )
-
-        main_cycle(predstih=True)
-
-    else:
-
-        start = dalsi_ctvrthodina(now)
-
-        if start > now:
-
-            print(
-                f"Čekám do začátku čtvrthodiny "
-                f"{start.strftime('%H:%M:%S')}"
-            )
-
-            cekej_do_casoveho_bodu(start)
-
+    if now.minute < HRANICE_OKAMZITEHO_STARTU:
+        print("Běží již nová hodina – první cyklus se spustí ihned.")
         main_cycle(predstih=False)
-
+    else:
+        next_hour = dalsi_cela_hodina(now)
+        start_rozhodovani = next_hour - timedelta(minutes=PREDSTIH_MINUT)
+        print(f"Čekám do rozhodovacího bodu {start_rozhodovani.strftime('%H:%M:%S')}")
+        cekej_do_casoveho_bodu(start_rozhodovani)
+        if rozhodni_spusteni_cyklu():
+            print("První cyklus spuštěn s předstihem.")
+            main_cycle(predstih=True)
+        else:
+            print("Předstih není potřeba, čekám na začátek nové hodiny.")
+            cekej_do_casoveho_bodu(next_hour)
+            main_cycle(predstih=False)
 
     # Po prvním cyklu pokračují standardní
     # čtvrthodinové cykly.
