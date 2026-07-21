@@ -105,31 +105,24 @@ def uloz_posledni_stav(stav: int):
 
 def urci_rizenou_ctvrthodinu(predstih=False):
     now = datetime.now(ZoneInfo("Europe/Prague"))
-
     if predstih:
         cil = now + timedelta(minutes=PREDSTIH_MINUT)
     else:
         cil = now
-
     return cil.hour * 4 + cil.minute // 15 + 1
 
 def je_cena_pod_limitem(df, predstih=False):
     ctvrthodina_index = urci_rizenou_ctvrthodinu(predstih)
-
     row = df[df["Ctvrthodina"] == ctvrthodina_index]
-
     if row.empty:
         raise Exception(f"Nenalezena cena pro periodu {ctvrthodina_index}.")
-
     cena = float(row.iloc[0]["Cena (EUR/MWh)"])
-
     start_min = (ctvrthodina_index - 1) * 15
     end_min = start_min + 15
-
     print(f"Cena {start_min//60:02d}:{start_min%60:02d}–{end_min//60:02d}:{end_min%60:02d}: {cena:.2f} EUR/MWh")
-
     return cena < LIMIT_EUR, cena
 class MqttRelaisController:
+
     def __init__(self, broker, port, username, password, base_topic):
         self.broker = broker
         self.port = port
@@ -155,17 +148,17 @@ class MqttRelaisController:
             self._connected_event.set()
         else:
             print(f"MQTT chyba reason_code={reason_code}")
-
+    
     def _on_disconnect(self, client, userdata, reason_code, properties, reason_string):
         print("MQTT odpojeno")
         self._connected_event.clear()
 
+    
     def _on_message(self, client, userdata, msg):
         if msg.retain:
-            print("Ignoruji retained zprávu: " f"{msg.payload.decode(errors='ignore')}")
             return
-        payload = (msg.payload.decode(errors="ignore").strip())
-        print(f"MQTT {msg.topic}: " f"{payload}")
+        payload = msg.payload.decode(errors="ignore").strip()
+        print(f"MQTT {msg.topic}: {payload}")
         if payload in ("1", "0"):
             with self._lock:
                 self._last_payload = payload
@@ -173,10 +166,8 @@ class MqttRelaisController:
                 
     def connect(self, timeout=10):
         print(f"MQTT connect na {self.broker}:{self.port}")
-
         self.client.connect(self.broker, self.port, keepalive=60)
         self.client.loop_start()
-
         if not self._connected_event.wait(timeout):
             raise TimeoutError("MQTT broker nepotvrdil připojení.")
 
@@ -187,23 +178,16 @@ class MqttRelaisController:
     def publish_and_wait_confirmation(self, desired_state: str, timeout_seconds: int):
         if desired_state not in ("1", "0"):
             raise ValueError("Stav musí být '1' nebo '0'.")
-
         with self._lock:
             self._last_payload = None
-
         self._confirm_event.clear()
-
         print(f"Publikuji {desired_state} na {self.topic_set}")
-
         self.client.publish(self.topic_set, desired_state)
-
         if not self._confirm_event.wait(timeout_seconds):
             print("Timeout — žádné potvrzení.")
             return False
-
         with self._lock:
             return self._last_payload == desired_state
-
 
 # ====== HLAVNÍ LOGIKA ======
 
@@ -212,67 +196,49 @@ def rozhodni_spusteni_cyklu():
     Vrací:
     - True  = cyklus může běžet ihned s předstihem
     - False = čekat na začátek čtvrthodiny
-
     Předstih se použije pouze při přechodu OFF -> ON.
     """
 
     df = nacti_ceny()
     posledni_stav = nacti_posledni_stav()
-
     pod_limitem, cena = je_cena_pod_limitem(df, predstih=True)
-
     pozadovany_stav = 1 if pod_limitem else 0
-
     print(f"Poslední stav: {posledni_stav}")
     print(f"Požadovaný stav následující čtvrthodiny: {pozadovany_stav}")
 
     if posledni_stav == 0 and pozadovany_stav == 1:
         print("Detekován přechod OFF → ON, používám předstih.")
         return True
-
     print("Předstih není potřeba, čekám na začátek čtvrthodiny.")
     return False
 
 
 def main_cycle(predstih=False):
     ctl = None
-
     try:
         df = nacti_ceny()
-
         pod_limitem, cena = je_cena_pod_limitem(df, predstih)
-
         desired_payload = "1" if pod_limitem else "0"
         desired_payload_int = int(desired_payload)
-
         posledni_stav = nacti_posledni_stav()
-
         print(f"Poslední známý stav: {posledni_stav}")
         print(f"Požadovaný stav relé: {desired_payload}")
-
         akce_text = "zapnuto" if desired_payload == "1" else "vypnuto"
-
         ctl = MqttRelaisController(MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_BASE)
         ctl.connect(timeout=15)
-
         success = False
 
         for pokus in range(1, POKUSY + 1):
             print(f"--- Pokus {pokus}/{POKUSY} ---")
-
             if ctl.publish_and_wait_confirmation(desired_payload, CEKANI_SEKUND):
                 success = True
-
                 cas = datetime.now(ZoneInfo("Europe/Prague")).strftime("%H:%M")
-
                 if posledni_stav != desired_payload_int:
                     send_telegram(f"<b>Relé {akce_text}</b> ({cas}).")
                 else:
                     print("Stav se nezměnil – Telegram se neposílá.")
-
                 uloz_posledni_stav(desired_payload_int)
                 break
-
             print(f"Nepotvrzeno, pokus {pokus}")
 
         if not success:
@@ -305,7 +271,6 @@ def cekej_do_casoveho_bodu(target_dt):
             time.sleep(10)
         else:
             time.sleep(1)
-
 
 def zacatek_ctvrthodiny(now=None):
     if now is None:
@@ -394,36 +359,26 @@ if __name__ == "__main__":
     now = datetime.now(ZoneInfo("Europe/Prague"))
 
     if 5 <= now.hour < 21:
-
         commitni_posledni_stav()
-
         trigger_time = (
             dalsi_cela_hodina(now)
             -
             timedelta(minutes=REZERVA_START_MINUT)
         )
-
         print(
             f"Čekám do spuštění dalšího workflow "
             f"{trigger_time.strftime('%H:%M:%S')}"
         )
-
         cekej_do_casoveho_bodu(trigger_time)
-
         spustit_dalsi_beh()
-
     else:
-
         print(
             "Noční pauza – čekám na ranní spuštění."
         )
-
         trigger_time = (
             dalsi_cela_hodina(now)
             -
             timedelta(minutes=REZERVA_START_MINUT)
         )
-
         cekej_do_casoveho_bodu(trigger_time)
-
         spustit_dalsi_beh()
