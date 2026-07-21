@@ -6,6 +6,7 @@ ovladani_rele.py
 - Telegram oznámení se odešle pouze při skutečné změně stavu relé
 - workflow se spouští s předstihem před další hodinou
 - předstih sepnutí se použije pouze při přechodu OFF → ON
+- předstih slouží k eliminaci účtování přetoku čítače distributora do nově začínající čtvrthodiny s podlimitními cenami
 - ostatní změny proběhnou na začátku příslušné čtvrthodiny
 """
 import os
@@ -24,7 +25,7 @@ LIMIT_EUR = 13.0
 CENY_SOUBOR = "ceny_ote.csv"
 POSLEDNI_STAV_SOUBOR = "posledni_stav.txt"
 
-PREDSTIH_MINUT = 5
+PREDSTIH_MINUT = 10
 REZERVA_START_MINUT = PREDSTIH_MINUT + 2
 HRANICE_OKAMZITEHO_STARTU = 60 - REZERVA_START_MINUT + 1
 
