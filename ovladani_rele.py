@@ -286,14 +286,8 @@ if __name__ == "__main__":
             main_cycle(predstih=False)
     # ====== SPUŠTĚNÍ DALŠÍHO WORKFLOW ======
 now = datetime.now(ZoneInfo("Europe/Prague"))
-if 5 <= now.hour < 21:
-    commitni_posledni_stav()
-    trigger_time = dalsi_cela_hodina(now) - timedelta(minutes=12)
-    print(f"Čekám do spuštění dalšího workflow {trigger_time.strftime('%H:%M:%S')}")
-    cekej_do_casoveho_bodu(trigger_time)
-    spustit_dalsi_beh()
-else:
-    print("Noční pauza – čekám na ranní spuštění.")
-    trigger_time = dalsi_cela_hodina(now) - timedelta(minutes=12)
-    cekej_do_casoveho_bodu(trigger_time)
-    spustit_dalsi_beh()
+commitni_posledni_stav()
+trigger_time = dalsi_cela_hodina(now) - timedelta(minutes=12)
+print(f"Čekám do spuštění dalšího workflow {trigger_time.strftime('%H:%M:%S')}")
+cekej_do_casoveho_bodu(trigger_time)
+spustit_dalsi_beh()
