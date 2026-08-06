@@ -2,6 +2,7 @@ name: watchdog_ovladani_rele
 on:
   schedule:
     - cron: "10 22 * * *" # cca 0:10 SELČ
+    - cron: "10 15 * * *" # cca 17:10 SELČ
     - cron: "0 8 * * *"   # cca 10:00 SELČ
   workflow_dispatch:
 permissions:
