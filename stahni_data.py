@@ -147,8 +147,6 @@ def vytvor_graf(df):
     buf.seek(0)
     plt.close(fig)
     return buf
-```
-
 def zjisti_intervaly_pod_limitem(df):
     """
     Vrátí seznam intervalů,
