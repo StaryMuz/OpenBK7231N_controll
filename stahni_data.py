@@ -110,17 +110,10 @@ def uloz_csv(
         f"💾 Data uložena do "
         f"{soubor}"
     )
+```python
 def vytvor_graf(df):
     df = df.copy()
-    df["Cas"] = dnes.replace(
-        hour=0,
-        minute=0,
-        second=0,
-        microsecond=0
-    ) + pd.to_timedelta(
-        (df["Ctvrthodina"] - 1) * 15,
-        unit="m"
-    )
+    df["Cas"] = (df["Ctvrthodina"] - 1) / 4
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.plot(
         df["Cas"],
@@ -141,16 +134,8 @@ def vytvor_graf(df):
         f"Ceny elektřiny "
         f"{dnes.strftime('%d.%m.%Y')}"
     )
-    ax.set_xticks(
-        pd.date_range(
-            start=df["Cas"].min().normalize(),
-            end=df["Cas"].max().normalize() + pd.Timedelta(hours=23),
-            freq="2h"
-        )
-    )
-    ax.xaxis.set_major_formatter(
-        plt.matplotlib.dates.DateFormatter("%H")
-    )
+    ax.set_xticks(range(0, 24, 2))
+    ax.set_xlim(0, 23.75)
     ax.grid(True)
     ax.legend()
     buf = io.BytesIO()
@@ -162,6 +147,8 @@ def vytvor_graf(df):
     buf.seek(0)
     plt.close(fig)
     return buf
+```
+
 def zjisti_intervaly_pod_limitem(df):
     """
     Vrátí seznam intervalů,
