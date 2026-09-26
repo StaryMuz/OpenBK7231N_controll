@@ -110,7 +110,6 @@ def uloz_csv(
         f"💾 Data uložena do "
         f"{soubor}"
     )
-```python
 def vytvor_graf(df):
     df = df.copy()
     df["Cas"] = (df["Ctvrthodina"] - 1) / 4
