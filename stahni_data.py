@@ -111,9 +111,19 @@ def uloz_csv(
         f"{soubor}"
     )
 def vytvor_graf(df):
+    df = df.copy()
+    df["Cas"] = dnes.replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0
+    ) + pd.to_timedelta(
+        (df["Ctvrthodina"] - 1) * 15,
+        unit="m"
+    )
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.plot(
-        df["Ctvrthodina"],
+        df["Cas"],
         df["Cena (EUR/MWh)"],
         marker="o"
     )
@@ -125,11 +135,21 @@ def vytvor_graf(df):
             f"{LIMIT_EUR} EUR/MWh"
         )
     )
-    ax.set_xlabel("Čtvrthodina")
+    ax.set_xlabel("Hodina")
     ax.set_ylabel("Cena (EUR/MWh)")
     ax.set_title(
         f"Ceny elektřiny "
         f"{dnes.strftime('%d.%m.%Y')}"
+    )
+    ax.set_xticks(
+        pd.date_range(
+            start=df["Cas"].min().normalize(),
+            end=df["Cas"].max().normalize() + pd.Timedelta(hours=23),
+            freq="2h"
+        )
+    )
+    ax.xaxis.set_major_formatter(
+        plt.matplotlib.dates.DateFormatter("%H")
     )
     ax.grid(True)
     ax.legend()
